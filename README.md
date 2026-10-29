@@ -1,10 +1,15 @@
-# DocMatch v0.2 — Visual Document Audit (Offline)
+# DocMatch v0.3 — PDF tajam & stabilo transparan
 
-## Instalasi (Windows)
+## Perubahan dari v0.2
+- Pratinjau PDF dirender dengan **supersampling 2×** dari ukuran tampilan; lebih tajam ketika di-zoom dan ditampilkan pada layar HiDPI.
+- Penanda perbedaan berupa **stabilo semi-transparan** (alpha 65/255), sehingga tulisan di bawahnya tetap terbaca.
+- Garis batas penanda tipis dan semi-transparan, nomor penanda dipindahkan ke atas area teks bila memungkinkan.
+- Checkbox **Stabilo** di setiap viewer untuk mengaktifkan atau menyembunyikan anotasi.
+- Zoom diperlihatkan di toolbar masing-masing viewer.
 
-1. Instal Python 3.10+ dan LibreOffice (tambahkan folder `program` LibreOffice ke PATH bila perlu).
-2. Buka terminal di folder ini.
-3. Jalankan:
+## Menjalankan di Windows
+1. Instal Python 3.10+ dan LibreOffice untuk pratinjau DOCX/DOC.
+2. Ekstrak paket, lalu di folder `docmatch_v0.3` jalankan:
 
 ```powershell
 python -m venv .venv
@@ -13,24 +18,12 @@ pip install -r requirements.txt
 python docmatch.py
 ```
 
-## Fitur
-
-- Antarmuka light: dua halaman dokumen berdampingan dan daftar perbedaan di kanan.
-- Input DOCX, PDF, DOC lama. DOC lama memerlukan LibreOffice lokal.
-- Pratinjau halaman berbasis PDF lokal, dengan penanda nomor dan kotak merah/hijau pada teks yang berhasil ditemukan.
-- Navigasi ke halaman dari daftar perbedaan, filter jenis, dan checkbox koreksi.
-- Ekspor hasil koreksi sebagai DOCX/PDF berbasis teks dan laporan JSON.
-- Tidak menggunakan API jaringan atau mengunggah dokumen.
-
-## Batasan penting
-
-- Penanda visual bersifat *best effort* melalui pencarian teks PDF, **bukan** pemetaan semantik presisi; bisa salah posisi atau tidak muncul, khususnya pada teks berulang, line wrap, dan perubahan besar.
-- Perbedaan dihitung pada tingkat blok, sehingga satu blok dapat mengandung beberapa perubahan kata/angka.
-- Bagian hilang atau berlebih hanya dapat ditandai pada sisi yang memiliki teks; sisi yang kosong tidak diberi kotak lokasi semu.
-- Ekspor koreksi **belum mempertahankan format asli**, tabel, gambar, header/footer, atau posisi halaman. Gunakan salinan dokumen dan periksa hasil sebelum dipakai resmi.
-- PDF scan tanpa teks memerlukan OCR, belum tersedia.
-- Konversi DOC/PDF dilakukan oleh LibreOffice lokal, tanpa koneksi jaringan.
-
 ## Pengujian
+Buka dua PDF contoh, klik **Bandingkan Dokumen**, perbesar halaman, lalu hidupkan/matikan checkbox **Stabilo**. Pastikan teks tetap terbaca di bawah penanda merah dan hijau.
 
-Jalankan dengan pasangan DOCX dalam paket contoh DocMatch. Klik item perbedaan untuk berpindah halaman, pilih koreksi melalui checkbox, lalu ekspor.
+## Batasan yang belum berubah
+- Pencocokan posisi teks masih berbasis `page.search_for` dan belum selalu akurat untuk teks berulang, terpotong baris, atau blok hilang.
+- PDF scan tanpa text layer belum didukung (memerlukan OCR).
+- Ekspor koreksi DOCX/PDF masih membuat ulang dokumen berbasis teks dan **tidak menjamin format asli**.
+- Belum diuji secara interaktif dalam lingkungan ini (PySide6 tidak terinstal); pemeriksaan sintaks berhasil.
+- Semua proses dilakukan secara lokal tanpa unggahan ke server.

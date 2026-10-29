@@ -4,13 +4,17 @@ import sys, tempfile, shutil, json, difflib, re
 from pathlib import Path
 from dataclasses import asdict
 import fitz
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
     QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 
 RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
+# Supersampling improves PDF readability without changing the displayed page dimensions.
+RENDER_QUALITY=2.0
+HIGHLIGHT_ALPHA=65  # 0 = transparent; 255 = opaque
+
 
 def make_preview(path:Path, tmp:Path)->Path:
     if path.suffix.lower()=='.pdf': return path
@@ -25,13 +29,13 @@ def fragments(text:str):
 
 class Paper(QWidget):
     def __init__(self,title):
-        super().__init__(); self.pdf=None; self.page=0; self.zoom=1.15; self.marks=[]; self.title=title
+        super().__init__(); self.pdf=None; self.page=0; self.zoom=1.15; self.marks=[]; self.title=title; self.highlights=True
         lay=QVBoxLayout(self); lay.setContentsMargins(8,8,8,8)
         bar=QHBoxLayout(); self.heading=QLabel(title); self.heading.setStyleSheet('font-weight:700')
         bar.addWidget(self.heading); bar.addStretch()
         self.prev=QPushButton('‹');self.next=QPushButton('›');self.counter=QLabel('0 / 0')
-        self.minus=QPushButton('−');self.plus=QPushButton('+')
-        for w in (self.prev,self.counter,self.next,self.minus,self.plus):bar.addWidget(w)
+        self.minus=QPushButton('−');self.plus=QPushButton('+');self.toggle=QCheckBox('Stabilo');self.toggle.setChecked(True)
+        for w in (self.prev,self.counter,self.next,self.minus,self.plus,self.toggle):bar.addWidget(w)
         lay.addLayout(bar)
         self.scroll=QScrollArea();self.scroll.setWidgetResizable(False);self.scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop)
         self.canvas=QLabel('Pilih dokumen lalu klik Bandingkan');self.canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -39,6 +43,8 @@ class Paper(QWidget):
         self.scroll.setWidget(self.canvas);lay.addWidget(self.scroll,1)
         self.prev.clicked.connect(lambda:self.goto(self.page-1));self.next.clicked.connect(lambda:self.goto(self.page+1))
         self.plus.clicked.connect(lambda:self.set_zoom(self.zoom+.15));self.minus.clicked.connect(lambda:self.set_zoom(self.zoom-.15))
+        self.toggle.toggled.connect(self.set_highlights)
+    def set_highlights(self,enabled):self.highlights=enabled;self.render()
     def set_zoom(self,z):self.zoom=max(.6,min(2.3,z));self.render()
     def load(self,path,marks):
         if self.pdf:self.pdf.close()
@@ -47,20 +53,42 @@ class Paper(QWidget):
         if self.pdf and 0<=page<len(self.pdf):self.page=page;self.render()
     def render(self):
         if not self.pdf:return
-        p=self.pdf[self.page];pix=p.get_pixmap(matrix=fitz.Matrix(self.zoom,self.zoom),alpha=False)
+        p=self.pdf[self.page]
+        # Render at 2x the visible resolution, then let Qt downsample smoothly.
+        scale=self.zoom*RENDER_QUALITY
+        pix=p.get_pixmap(matrix=fitz.Matrix(scale,scale),alpha=False,colorspace=fitz.csRGB)
         img=QImage(pix.samples,pix.width,pix.height,pix.stride,QImage.Format.Format_RGB888).copy()
-        painter=QPainter(img);painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        for m in self.marks:
-            if m['page']!=self.page:continue
-            rect=m['rect']*fitz.Matrix(self.zoom,self.zoom)
-            col=QColor('#F6B6BF' if m['side']=='exam' else GREEN)
-            painter.fillRect(int(rect.x0),int(rect.y0),max(3,int(rect.width)),max(3,int(rect.height)),col)
-            painter.setPen(QPen(QColor(RED),2));painter.drawRect(int(rect.x0),int(rect.y0),max(3,int(rect.width)),max(3,int(rect.height)))
-            x=min(img.width()-24,max(4,int(rect.x1)+3));y=max(22,int(rect.y0))
-            painter.setBrush(QColor(RED));painter.setPen(Qt.PenStyle.NoPen);painter.drawEllipse(x,y-18,22,22)
-            painter.setPen(QColor('white'));painter.setFont(QFont('Arial',9,QFont.Weight.Bold));painter.drawText(x,y-18,22,22,Qt.AlignmentFlag.AlignCenter,str(m['id']))
-        painter.end();self.canvas.setPixmap(QPixmap.fromImage(img));self.canvas.resize(img.size())
-        self.counter.setText(f'{self.page+1} / {len(self.pdf)}')
+        if self.highlights:
+            painter=QPainter(img)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+            for m in self.marks:
+                if m['page']!=self.page:continue
+                rect=m['rect']*fitz.Matrix(scale,scale)
+                # Semi-transparent highlighter: original black text remains visible.
+                base=QColor('#E84559' if m['side']=='exam' else '#36C977')
+                fill=QColor(base);fill.setAlpha(HIGHLIGHT_ALPHA)
+                painter.fillRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),fill)
+                outline=QColor(base);outline.setAlpha(155)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.setPen(QPen(outline,max(1,scale*.65)))
+                painter.drawRect(QRectF(rect.x0,rect.y0,rect.width,rect.height))
+                # Number marker sits ABOVE the text, not on top of the letters.
+                diameter=15*scale
+                x=max(2*scale,min(img.width()-diameter-2*scale,rect.x1-diameter/2))
+                y=rect.y0-diameter-4*scale
+                if y<0:y=min(img.height()-diameter,rect.y1+3*scale)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QColor('#B00020' if m['side']=='exam' else '#13834A'))
+                painter.drawEllipse(int(x),int(y),int(diameter),int(diameter))
+                painter.setPen(QColor('white'))
+                painter.setFont(QFont('Arial',max(8,int(8*scale)),QFont.Weight.Bold))
+                painter.drawText(int(x),int(y),int(diameter),int(diameter),Qt.AlignmentFlag.AlignCenter,str(m['id']))
+            painter.end()
+        result=QPixmap.fromImage(img)
+        result.setDevicePixelRatio(RENDER_QUALITY)
+        self.canvas.setPixmap(result)
+        self.canvas.resize(result.deviceIndependentSize().toSize())
+        self.counter.setText(f'{self.page+1} / {len(self.pdf)}  ·  {int(self.zoom*100)}%')
 
 
 def locate(pdf_path:Path,diffs,side:str):
@@ -90,8 +118,8 @@ def locate(pdf_path:Path,diffs,side:str):
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v0.2 — Visual Audit (Offline)');self.resize(1550,920)
-        self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v02_');self.work=Path(self.tmp.name)
+        super().__init__();self.setWindowTitle('DocMatch v0.3 — PDF Stabilo Transparan (Offline)');self.resize(1550,920)
+        self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[]
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
         header=QHBoxLayout();brand=QLabel('▣  DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
@@ -113,7 +141,7 @@ class Window(QMainWindow):
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
         split.addWidget(side);split.setSizes([530,530,380]);main.addWidget(split,1)
-        self.status=QLabel('Siap. Pilih dua dokumen DOCX, PDF, atau DOC. Pratinjau DOCX/DOC membutuhkan LibreOffice lokal.')
+        self.status=QLabel('v0.3 · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
         main.addWidget(self.status)
         self.setStyleSheet(f'''QMainWindow,QWidget{{background:{BG};color:{DARK};font-family:Segoe UI,Arial;font-size:12px}}
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:7px;padding:10px 13px}}
