@@ -1,4 +1,4 @@
-"""DocMatch v0.2: local desktop visual document comparison."""
+"""DocMatch v0.4: local desktop visual document comparison."""
 from __future__ import annotations
 import sys, tempfile, shutil, json, difflib, re
 from pathlib import Path
@@ -7,8 +7,9 @@ import fitz
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
+from rules import parse_embedded, resolve_scope, selective_compare
 
 RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
 # Supersampling improves PDF readability without changing the displayed page dimensions.
@@ -118,9 +119,9 @@ def locate(pdf_path:Path,diffs,side:str):
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v0.3 — PDF Stabilo Transparan (Offline)');self.resize(1550,920)
+        super().__init__();self.setWindowTitle('DocMatch v0.4 — Pemeriksaan Selektif (Offline)');self.resize(1550,920)
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
-        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[]
+        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[]
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
         header=QHBoxLayout();brand=QLabel('▣  DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
         header.addWidget(brand);header.addWidget(QLabel('Pembanding & Koreksi Dokumen  •  100% Offline'));header.addStretch();main.addLayout(header)
@@ -129,6 +130,11 @@ class Window(QMainWindow):
         self.ref_btn.clicked.connect(lambda:self.pick('ref'));self.exam_btn.clicked.connect(lambda:self.pick('exam'));self.run_btn.clicked.connect(self.run)
         for b in (self.ref_btn,self.exam_btn,self.run_btn):toolbar.addWidget(b)
         main.addLayout(toolbar)
+        rules_bar=QHBoxLayout();rules_bar.addWidget(QLabel('Mode parameter:'))
+        self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual')
+        rules_bar.addWidget(self.rule_mode)
+        self.scope_btn=QPushButton('Pilih Paragraf Rujukan…');self.scope_btn.clicked.connect(self.choose_scope);rules_bar.addWidget(self.scope_btn)
+        self.all_scope=QCheckBox('Periksa seluruh dokumen');rules_bar.addWidget(self.all_scope);rules_bar.addStretch();main.addLayout(rules_bar)
         split=QSplitter(Qt.Orientation.Horizontal);self.ref_view=Paper('DOKUMEN RUJUKAN');self.exam_view=Paper('DOKUMEN DIPERIKSA')
         split.addWidget(self.ref_view);split.addWidget(self.exam_view)
         side=QWidget();side.setMinimumWidth(320);side.setMaximumWidth(440);s=QVBoxLayout(side)
@@ -141,7 +147,7 @@ class Window(QMainWindow):
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
         split.addWidget(side);split.setSizes([530,530,380]);main.addWidget(split,1)
-        self.status=QLabel('v0.3 · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
+        self.status=QLabel('v0.4 · Seleksi paragraf + tag DOCMATCH · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
         main.addWidget(self.status)
         self.setStyleSheet(f'''QMainWindow,QWidget{{background:{BG};color:{DARK};font-family:Segoe UI,Arial;font-size:12px}}
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:7px;padding:10px 13px}}
@@ -154,17 +160,48 @@ class Window(QMainWindow):
         p=Path(name)
         if side=='ref':self.ref_path=p;self.ref_btn.setText('Rujukan: '+p.name)
         else:self.exam_path=p;self.exam_btn.setText('Diperiksa: '+p.name)
+    def choose_scope(self):
+        if not self.ref_path:
+            QMessageBox.warning(self,'Pilih rujukan','Pilih dokumen rujukan terlebih dahulu.');return
+        try:
+            (self.work/'rules').mkdir(exist_ok=True)
+            raw,_=read_blocks(self.ref_path,self.work/'rules')
+            parsed=parse_embedded(raw)
+        except Exception as e:
+            QMessageBox.critical(self,'Gagal membaca aturan',str(e));return
+        dlg=QDialog(self);dlg.setWindowTitle('Pilih Paragraf Rujukan');dlg.resize(680,520)
+        layout=QVBoxLayout(dlg);layout.addWidget(QLabel('Centang paragraf yang ingin diperiksa. Tag DOCMATCH tidak termasuk konten.'))
+        items=QListWidget();layout.addWidget(items)
+        for i,block in enumerate(parsed.blocks):
+            item=QListWidgetItem(f'Paragraf {i+1}: {block[:180]}');item.setToolTip(block)
+            item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if i in self.scope else Qt.CheckState.Unchecked)
+            items.addItem(item)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dlg.accept);buttons.rejected.connect(dlg.reject);layout.addWidget(buttons)
+        if dlg.exec()==QDialog.DialogCode.Accepted:
+            self.scope={i for i in range(items.count()) if items.item(i).checkState()==Qt.CheckState.Checked}
+            self.scope_btn.setText(f'Paragraf dipilih: {len(self.scope)}')
+
     def run(self):
         if not self.ref_path or not self.exam_path:QMessageBox.warning(self,'Berkas belum lengkap','Pilih kedua dokumen.');return
         try:
-            self.reference,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
-            self.diffs=compare(self.reference,self.examined)
+            self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
+            parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
+            self.mode=self.rule_mode.currentData()
+            active=resolve_scope(parsed,self.scope,self.mode,self.all_scope.isChecked())
+            if not active:raise ValueError('Tidak ada parameter aktif. Pilih paragraf, tambahkan tag, atau centang seluruh dokumen.')
+            self.active_scope=active
+            if self.all_scope.isChecked():
+                self.diffs=compare(self.reference,self.examined);self.uncertain=[]
+            else:
+                self.diffs,self.uncertain,_=selective_compare(self.reference,self.examined,active)
             # Separate directories avoid collisions when both inputs share a filename.
             a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
             refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
             rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
             self.ref_view.load(refpdf,rm);self.exam_view.load(exampdf,em);self.populate()
-            self.status.setText(f'{len(self.diffs)} perbedaan blok · Anotasi ditemukan: rujukan {len(rm)}, diperiksa {len(em)} · Lokasi tidak ditemukan: {len(set(rmiss+emiss))}.')
+            self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
         except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def populate(self,*args):
         self.list.clear();self.visible=[]
@@ -206,7 +243,7 @@ class Window(QMainWindow):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'differences':[
+            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'limitations':'Seleksi hanya mencakup blok teks; tabel dan header/footer tidak dicakup. Ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
