@@ -1,37 +1,47 @@
-# DocMatch v0.1 — prototipe offline
+# DocMatch v0.4 — Offline Selective Comparison
 
-## Menjalankan
+## Instalasi (Windows)
 
-Python 3.10+ diperlukan.
+Python 3.10+ dan LibreOffice diperlukan untuk DOC lama, serta rendering DOCX menjadi PDF. Semua proses lokal.
 
-```bash
+```powershell
 python -m venv .venv
-# Windows:
 .venv\Scripts\activate
-# macOS/Linux:
-# source .venv/bin/activate
 pip install -r requirements.txt
 python docmatch.py
 ```
 
-Untuk membaca `.doc` lama dan mengekspor PDF, instal **LibreOffice** dan pastikan `soffice`/`libreoffice` ada pada PATH. Pada Windows, tambahkan folder `C:\Program Files\LibreOffice\program` ke PATH jika diperlukan.
+## Aturan tertanam dalam rujukan
 
-## Cara memakai
+Letakkan tag sebagai **paragraf terpisah** (bukan bagian dari kalimat):
 
-1. Pilih dokumen rujukan.
-2. Pilih dokumen diperiksa.
-3. Klik Bandingkan.
-4. Centang perbedaan yang akan dikoreksi.
-5. Ekspor DOCX/PDF dan laporan JSON.
+```
+[DOCMATCH:START id="objek" mode="exact"]
+Pihak Pertama menyediakan 25 unit komputer.
+[DOCMATCH:END]
 
-## Batasan penting
+Nilai kontrak sebesar Rp150.000.000.
+```
 
-- Ini MVP **berbasis blok teks**, bukan editor dokumen dengan pelestarian layout.
-- Ekspor DOCX/PDF membuat **dokumen baru** dengan paragraf teks, tidak mempertahankan tabel, gambar, header/footer, font, dan format asal.
-- DOCX: hanya paragraf utama yang dibaca; tabel, header/footer, catatan kaki belum diperiksa.
-- PDF: hanya PDF dengan teks; hasil ekstraksi dapat berbeda dari urutan baca visual; OCR tidak tersedia.
-- DOC: perlu LibreOffice lokal untuk konversi.
-- Perbedaan dipasangkan menurut urutan dalam rentang perubahan; penyisipan/perpindahan blok besar dapat menyebabkan false positive atau koreksi salah.
-- Jangan gunakan koreksi otomatis untuk dokumen hukum/keuangan tanpa pemeriksaan manual menyeluruh.
-- Tidak ada akses jaringan atau unggahan dokumen dalam kode aplikasi.
-"# Docmatch" 
+Hanya paragraf dalam tag yang dipilih pada mode *Tag dokumen saja*. Pilih *Gabungkan tag + pilihan aplikasi* untuk menambahkan pilihan lewat tombol **Pilih Paragraf Rujukan…**. Tag tidak ikut dibandingkan, tetapi masih dapat terlihat pada preview PDF asli.
+
+Untuk memeriksa seluruh dokumen, centang **Periksa seluruh dokumen**.
+
+## Keterbatasan yang harus diketahui
+
+- Seleksi bekerja pada blok teks hasil ekstraksi, bukan koordinat pilihan mouse langsung pada kertas. Tombol pemilihan membuka daftar paragraf.
+- Pencocokan target menggunakan ambang kemiripan konservatif. Bagian yang tidak terpetakan perlu ditinjau manual; tidak otomatis dikategorikan hilang.
+- Parser PDF menggunakan blok ekstraksi PyMuPDF, sehingga batas paragraf dapat berbeda dari DOCX.
+- DOC lama membutuhkan LibreOffice; PDF hasil scan membutuhkan OCR yang belum disediakan.
+- Koreksi DOCX/PDF **membangun ulang teks** dan tidak mempertahankan semua format, gambar, tabel, dan tata letak. Jangan gunakan ekspor koreksi sebagai pengganti dokumen resmi tanpa pemeriksaan manual.
+- Tag yang tampak pada dokumen rujukan akan tampak juga di preview karena preview menggunakan dokumen asli. Metadata tersembunyi DOCX belum diimplementasikan.
+- Mode `exact` dan `normalized` pada tag diterima sebagai metadata tetapi belum menjadi strategi pencocokan yang berbeda.
+- Ketidaksesuaian tambahan di luar cakupan sengaja tidak dilaporkan. Laporan JSON menyertakan bagian yang tidak diperiksa.
+
+## Pengujian
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Tidak memerlukan server, internet, atau unggahan dokumen.
