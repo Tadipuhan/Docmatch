@@ -1,6 +1,6 @@
 """DocMatch v0.4: local desktop visual document comparison."""
 from __future__ import annotations
-import sys, tempfile, shutil, json, difflib, re, io
+import sys, tempfile, shutil, json, difflib, re, io, zipfile
 from pathlib import Path
 from dataclasses import asdict
 import pymupdf as fitz
@@ -184,7 +184,7 @@ class Window(QMainWindow):
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor);s.addWidget(self.editor_btn)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
         self.apply_btn=QPushButton('Ekspor DOCX / Laporan Waybill');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
-        self.pdf_btn=QPushButton('Ekspor PDF / Anotasi Waybill');self.pdf_btn.clicked.connect(self.export_pdf)
+        self.pdf_btn=QPushButton('Ekspor Hasil Pemeriksaan PDF…');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
         split.addWidget(side)
@@ -412,26 +412,136 @@ class Window(QMainWindow):
         if not self.diffs:
             QMessageBox.warning(self,'Belum dibandingkan','Jalankan perbandingan terlebih dahulu.');return False
         return True
-    def export_waybill_pdf(self, target):
-        # Non-destructive audit copy: preserves original PDF pages and draws transparent annotations.
-        if not self.exam_view.pdf:raise ValueError('Preview PDF dokumen diperiksa belum tersedia.')
-        source=self.exam_view.pdf
+    def export_waybill_pdf(self, target, side='exam'):
+        """Export a non-destructive annotated copy of either source PDF."""
+        if side not in ('ref', 'exam'):
+            raise ValueError('Sisi dokumen tidak dikenal.')
+        viewer = self.ref_view if side == 'ref' else self.exam_view
+        marks = self.ref_marks if side == 'ref' else self.exam_marks
+        if not viewer.pdf:
+            raise ValueError('Preview PDF belum tersedia. Jalankan perbandingan dahulu.')
         with fitz.open() as output:
-            output.insert_pdf(source)
-            for mark in self.exam_marks:
-                pno=mark['page']
-                if pno<0 or pno>=len(output):continue
-                rect=fitz.Rect(mark['rect'])
-                if rect.is_empty or rect.is_infinite:continue
-                kind=mark.get('kind','Perubahan')
-                rgb={'Perubahan':(0.91,0.29,0.37),'Hilang':(0.96,0.73,0.24),'Berlebih':(0.22,0.60,0.91)}.get(kind,(0.91,0.29,0.37))
-                page=output[pno]
-                shape=page.new_shape()
+            output.insert_pdf(viewer.pdf)
+            for mark in marks:
+                pno = mark['page']
+                if pno < 0 or pno >= len(output):
+                    continue
+                rect = fitz.Rect(mark['rect'])
+                if rect.is_empty or rect.is_infinite:
+                    continue
+                kind = mark.get('kind', 'Perubahan')
+                rgb = {'Perubahan': (0.91, 0.29, 0.37),
+                       'Hilang': (0.96, 0.73, 0.24),
+                       'Berlebih': (0.22, 0.60, 0.91)}.get(kind, (0.91, 0.29, 0.37))
+                page = output[pno]
+                shape = page.new_shape()
                 shape.draw_rect(rect)
-                shape.finish(color=rgb,fill=rgb,fill_opacity=0.24,stroke_opacity=0.60,width=0.4)
+                shape.finish(color=rgb, fill=rgb, fill_opacity=0.24,
+                             stroke_opacity=0.60, width=0.4)
                 shape.commit(overlay=True)
-            output.set_metadata({**output.metadata,'subject':'DocMatch Waybill - salinan audit beranotasi, bukan koreksi otomatis'})
-            output.save(str(target),garbage=3,deflate=True)
+            meta = dict(output.metadata or {})
+            meta['subject'] = 'DocMatch Waybill - salinan audit beranotasi, bukan koreksi otomatis'
+            output.set_metadata(meta)
+            output.save(str(target), garbage=3, deflate=True)
+
+    def choose_pdf_export_documents(self):
+        """Choose any combination of the three PDF output types."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Ekspor Hasil Pemeriksaan PDF — Waybill')
+        dialog.resize(510, 310)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel('Pilih satu atau beberapa dokumen untuk diekspor:'))
+        choices = [
+            ('ref', 'Dokumen Rujukan — PDF beranotasi'),
+            ('exam', 'Dokumen Diperiksa — PDF beranotasi'),
+            ('corrected', 'Dokumen Hasil Koreksi — teks pengganti yang disetujui'),
+        ]
+        boxes = []
+        for key, label in choices:
+            cb = QCheckBox(label)
+            cb.setChecked(key in ('ref', 'exam'))
+            layout.addWidget(cb)
+            boxes.append((key, cb))
+        row = QHBoxLayout()
+        all_btn = QPushButton('Pilih Semua')
+        none_btn = QPushButton('Hapus Semua')
+        all_btn.clicked.connect(lambda: [cb.setChecked(True) for _, cb in boxes])
+        none_btn.clicked.connect(lambda: [cb.setChecked(False) for _, cb in boxes])
+        row.addWidget(all_btn); row.addWidget(none_btn); row.addStretch()
+        layout.addLayout(row)
+        note = QLabel('Hasil Koreksi hanya tersedia untuk penggantian teks yang telah disetujui\n'
+                      'dan dapat dipetakan dengan aman. Temuan yang tidak aman akan diblokir.')
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
+                                   QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        selected = [key for key, cb in boxes if cb.isChecked()]
+        if not selected:
+            QMessageBox.warning(self, 'Belum memilih', 'Pilih minimal satu dokumen.')
+            return None
+        return selected
+
+    def export_waybill_corrected_pdf(self, target):
+        """Conservative replacement: only unique, one-line, explicitly approved substitutions.
+
+        Never silently convert a missing/extra token into a destructive PDF edit.
+        """
+        approved = [(i + 1, d) for i, d in enumerate(self.diffs) if d.apply]
+        if not approved:
+            raise ValueError('Belum ada koreksi yang disetujui. Centang temuan yang akan dikoreksi.')
+        planned = []
+        rejected = []
+        for number, diff in approved:
+            old = diff.examined_text.strip()
+            new = diff.reference_text.strip()
+            hits = [m for m in self.exam_marks if m['id'] == number]
+            if (diff.kind != 'Perubahan' or not old or not new or
+                len(old.split()) != 1 or len(new.split()) != 1 or len(hits) != 1):
+                rejected.append(number)
+                continue
+            hit = hits[0]
+            page = self.exam_view.pdf[hit['page']]
+            rect = fitz.Rect(hit['rect'])
+            # Validate that the highlighted rectangle really contains exactly the old token.
+            extracted = page.get_textbox(rect).strip()
+            if extracted != old or rect.width < 8 or rect.height < 4:
+                rejected.append(number)
+                continue
+            # Avoid overlapping replacement rectangles.
+            if any(hit['page'] == pno and rect.intersects(other) for pno, other, _, _ in planned):
+                rejected.append(number)
+                continue
+            planned.append((hit['page'], rect, old, new))
+        if rejected:
+            raise ValueError('Ekspor koreksi dibatalkan: temuan #' + ', #'.join(map(str,rejected)) +
+                ' belum aman untuk diganti otomatis. Gunakan PDF beranotasi untuk audit. '
+                'Koreksi Waybill multi-kata/angka dalam tabel memerlukan editor posisi khusus.')
+        with fitz.open() as output:
+            output.insert_pdf(self.exam_view.pdf)
+            for pno, rect, old, new in planned:
+                page = output[pno]
+                # Keep image and vector graphics; remove text only within the validated region.
+                page.add_redact_annot(rect, fill=False, cross_out=False)
+            for page in output:
+                page.apply_redactions(images=0, graphics=0, text=0)
+            for pno, rect, old, new in planned:
+                page = output[pno]
+                # Fit replacement into the existing bounding box; abort rather than overflow.
+                font_size = min(10.0, rect.height * 0.75)
+                if fitz.get_text_length(new, fontname='helv', fontsize=font_size) > rect.width:
+                    raise ValueError(f'Teks pengganti "{new}" tidak muat di kotak asli. Ekspor dibatalkan.')
+                page.insert_text((rect.x0, rect.y1 - rect.height * 0.20), new,
+                                 fontname='helv', fontsize=font_size, color=(0,0,0), overlay=True)
+            meta = dict(output.metadata or {})
+            meta['subject'] = 'DocMatch - koreksi PDF terbatas yang disetujui; periksa hasil secara visual'
+            output.set_metadata(meta)
+            output.save(str(target), garbage=3, deflate=True)
+
     def export_waybill_docx(self,target):
         # Editable findings with a faithful image of each original page. PDF text is NOT rebuilt as editable layout.
         from docx import Document
@@ -505,18 +615,55 @@ class Window(QMainWindow):
                     QMessageBox.information(self,'Selesai','DOCX disimpan. Paragraf yang berubah diberi stabilo. Layout asli belum dipertahankan.')
             except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def export_pdf(self):
-        if not self.ensure():return
-        name,_=QFileDialog.getSaveFileName(self,'Simpan PDF','docmatch_hasil.pdf','PDF (*.pdf)')
+        if not self.ensure():
+            return
+        if self.waybill_mode:
+            selected = self.choose_pdf_export_documents()
+            if selected is None:
+                return
+            outputs = {
+                'ref': ('Waybill_Rujukan_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'ref')),
+                'exam': ('Waybill_Diperiksa_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'exam')),
+                'corrected': ('Waybill_Hasil_Koreksi.pdf', self.export_waybill_corrected_pdf),
+            }
+            is_zip = len(selected) > 1
+            default = 'DocMatch_Hasil_PDF.zip' if is_zip else outputs[selected[0]][0]
+            file_filter = 'ZIP (*.zip)' if is_zip else 'PDF (*.pdf)'
+            name, _ = QFileDialog.getSaveFileName(self, 'Simpan hasil pemeriksaan', default, file_filter)
+            if not name:
+                return
+            target = Path(name)
+            target = target.with_suffix('.zip' if is_zip else '.pdf')
+            try:
+                with tempfile.TemporaryDirectory(prefix='docmatch_export_') as td:
+                    produced = []
+                    for key in selected:
+                        filename, writer = outputs[key]
+                        output_path = Path(td) / filename
+                        writer(output_path)
+                        produced.append(output_path)
+                    if is_zip:
+                        with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as zf:
+                            for path in produced:
+                                zf.write(path, path.name)
+                    else:
+                        shutil.copyfile(produced[0], target)
+                QMessageBox.information(self, 'Selesai', f'{len(selected)} dokumen berhasil diekspor ke:\n{target}')
+            except Exception as e:
+                QMessageBox.critical(self, 'Ekspor dibatalkan', str(e))
+            return
+        name, _ = QFileDialog.getSaveFileName(self, 'Simpan PDF',
+                                               'docmatch_hasil.pdf', 'PDF (*.pdf)')
         if name:
             try:
-                if self.waybill_mode:
-                    self.export_waybill_pdf(name)
-                    QMessageBox.information(self,'Selesai','PDF audit Waybill disimpan dengan layout asli dan stabilo transparan. Isi dokumen belum dikoreksi otomatis.')
-                else:
-                    src=self.work/'corrected.docx';save_annotated_docx(self.output_blocks(),src,self.editor_source or self.examined)
-                    pdf=libreoffice_convert(src,'pdf',self.work);shutil.copyfile(pdf,name)
-                    QMessageBox.information(self,'Selesai','PDF berhasil disimpan.')
-            except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
+                src = self.work / 'corrected.docx'
+                save_annotated_docx(self.output_blocks(), src,
+                                    self.editor_source or self.examined)
+                pdf = libreoffice_convert(src, 'pdf', self.work)
+                shutil.copyfile(pdf, name)
+                QMessageBox.information(self, 'Selesai', 'PDF berhasil disimpan.')
+            except Exception as e:
+                QMessageBox.critical(self, 'Gagal', str(e))
     def export_report(self):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')

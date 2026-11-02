@@ -1,11 +1,24 @@
-DocMatch v0.8 — Waybill Export Patch
+DocMatch v0.9 — Pemilihan Ekspor PDF (patch source)
 
-Ganti hanya docmatch.py pada folder source DocMatch. Pertahankan waybill_rules.py, legacy_v01.py, rules.py, editor.py.
-Jalankan: py docmatch.py
+1. Tutup DocMatch dan backup docmatch.py yang sekarang.
+2. Salin docmatch.py dari paket ini ke folder source DocMatch.
+3. Pertahankan waybill_rules.py, rules.py, editor.py, legacy_v01.py versi sebelumnya.
+4. Jalankan: py docmatch.py
 
-WAYBILL PDF: salinan PDF diperiksa dengan stabilo transparan, layout halaman dipertahankan. Tidak mengganti teks secara otomatis.
-WAYBILL DOCX: laporan temuan yang dapat diedit + lampiran gambar halaman Waybill beranotasi. Teks dalam gambar halaman tidak dapat diedit sebagai Word.
+Pada mode Waybill, tombol Ekspor Hasil Pemeriksaan PDF membuka tiga checkbox:
+- Dokumen Rujukan Beranotasi
+- Dokumen Diperiksa Beranotasi
+- Dokumen Hasil Koreksi
+Satu pilihan -> PDF; dua atau tiga -> ZIP.
 
-Catatan: jika ingin koreksi teks langsung pada Waybill sambil menjaga layout PDF asli, dibutuhkan modul penggantian teks berbasis koordinat dan verifikasi manual; belum tersedia pada patch ini.
+PENTING: Ekspor Hasil Koreksi bersifat konservatif dan terbatas. Hanya temuan jenis
+Perubahan yang dicentang/disetujui, berupa penggantian satu token ke satu token,
+memiliki satu lokasi yang tervalidasi, dan muat di kotak asli yang dapat diproses.
+Jika ada temuan terpilih yang tidak aman, ekspor koreksi DIBATALKAN, bukan diam-diam
+menghasilkan PDF yang salah. PDF yang berhasil tetap harus diverifikasi visual.
+Tidak mendukung koreksi otomatis multi-kata, teks hilang/berlebih, perubahan tabel
+kompleks, maupun pengeditan hasil koreksi langsung di halaman PDF.
 
-Dependensi: python-docx, PyMuPDF, PySide6 (sudah digunakan proyek). Tidak perlu LibreOffice untuk ekspor Waybill PDF/DOCX dari PDF.
+Paket ini dibuat berdasarkan DocMatch_v0.8_Export_Dua_PDF_Patch.zip yang tersedia
+pada percakapan; jika source lokal sudah berbeda, integrasi perlu diperiksa.
+Pemeriksaan sintaks dilakukan. Pengujian GUI Windows belum dilakukan.
