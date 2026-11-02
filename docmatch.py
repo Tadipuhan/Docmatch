@@ -5,13 +5,18 @@ from pathlib import Path
 from dataclasses import asdict
 import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF
-from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush
+from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush, QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
     QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
 from waybill_rules import FIELDS, compare_waybills
+
+def asset_path(name: str) -> Path:
+    """Resolve branding assets in source and PyInstaller builds."""
+    root = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+    return root / 'assets' / name
 
 RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
 # Supersampling improves PDF readability without changing the displayed page dimensions.
@@ -123,22 +128,42 @@ def locate(pdf_path:Path,diffs,side:str):
             if not found:misses.append(n)
     return marks,pages,misses
 
-def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, kind='Perubahan'):
+def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, kind='Perubahan', field=''):
     """Build a contextual note from the examined PDF's actual text line.
 
     Only replace an unambiguous exact token/phrase; otherwise preserve the
     reference fragment so the user can review the note manually.
     """
     fallback = reference_fragment.strip() or '[HAPUS TEKS BERLEBIH]'
+    # The note is a field-level suggestion, not a bare diff fragment.
+    # Labels are intentionally presentation labels, not extracted PDF text.
+    labels = {
+        'Voyage Number': 'VOYAGE',
+        'Waybill Number': 'WAYBILL',
+        'Vessel': 'VESSEL',
+        'Port of Loading': 'PORT OF LOADING',
+        'Port of Discharge': 'PORT OF DISCHARGE',
+        'Consignee': 'CONSIGNEE',
+        'Notify Party': 'NOTIFY PARTY',
+        'Container & Seal': 'CONTAINER & SEAL',
+        'Cargo Description': 'CARGO DESCRIPTION',
+        'Weight & Measurement': 'WEIGHT & MEASUREMENT',
+        'Place & Date of Issue': 'PLACE & DATE OF ISSUE',
+        'Additional Clauses': 'ADDITIONAL CLAUSES',
+    }
+    label = labels.get(field, '')
+    def labeled(value):
+        value = ' '.join(value.split())
+        return f'{label}: {value}' if label and value else value
     if kind != 'Perubahan' or not examined_fragment.strip():
-        return fallback
+        return labeled(fallback)
     if page_no is None or not (0 <= page_no < len(pdf)):
-        return fallback
+        return labeled(fallback)
     page = pdf[page_no]
     old = ' '.join(examined_fragment.split())
     new = ' '.join(reference_fragment.split())
     if not new:
-        return fallback
+        return labeled(fallback)
     # Extract original visual lines, not a text dump: this keeps unrelated
     # table columns and the next lines out of the suggested correction.
     lines = []
@@ -155,18 +180,32 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
     pattern = re.compile(r'(?<!\w)' + re.escape(old) + r'(?!\w)', re.IGNORECASE)
     candidates = [line for line in lines if pattern.search(line)]
     if len(candidates) == 1 and len(pattern.findall(candidates[0])) == 1:
-        return pattern.sub(lambda _m: new, candidates[0], count=1)
+        reconstructed = pattern.sub(lambda _m: new, candidates[0], count=1)
+        # For Waybill's single-value fields, the PDF often places the field
+        # heading in a different table cell/line. Always show a clear label.
+        if field in {'Voyage Number', 'Waybill Number', 'Vessel', 'Port of Loading', 'Port of Discharge'}:
+            return labeled(reconstructed)
+        return reconstructed
     # PDF text sometimes splits a word across spans or OCR-like fragments.
     # Do not invent surrounding words when the source line is ambiguous.
-    return fallback
+    return labeled(fallback)
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.3 — Step Wizard (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.4 — Step Wizard (Offline)');self.resize(1100,740)
+        icon_file=asset_path('docmatch.ico')
+        if icon_file.is_file(): self.setWindowIcon(QIcon(str(icon_file)))
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
-        header=QHBoxLayout();brand=QLabel('▣  DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
+        header=QHBoxLayout()
+        logo_label=QLabel()
+        logo_file=asset_path('docmatch_128.png')
+        if logo_file.is_file():
+            logo_label.setPixmap(QPixmap(str(logo_file)).scaled(52,52,Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation))
+            logo_label.setFixedSize(56,56)
+            header.addWidget(logo_label)
+        brand=QLabel('DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
         header.addWidget(brand);header.addWidget(QLabel('Pembanding & Koreksi Dokumen  •  100% Offline'));header.addStretch();main.addLayout(header)
         # Step Wizard ribbon: only this top area changes; viewers and comparison engine remain intact.
         self.wizard_steps=[]
@@ -588,7 +627,7 @@ class Window(QMainWindow):
         pages = [m['page'] for m in self.exam_marks if m['id'] == number]
         page_no = pages[0] if pages else None
         return full_line_correction(self.exam_view.pdf, page_no,
-                                    diff.examined_text, diff.reference_text, diff.kind)
+                                    diff.examined_text, diff.reference_text, diff.kind, getattr(diff, 'field', ''))
 
     def visual_correction_notes(self):
         """In-place editing of the red note boxes on a rendered annotated PDF.
@@ -1079,4 +1118,8 @@ class Window(QMainWindow):
             QMessageBox.information(self,'Selesai','Laporan disimpan.')
 
 if __name__=='__main__':
-    app=QApplication(sys.argv);w=Window();w.show();sys.exit(app.exec())
+    app=QApplication(sys.argv)
+    app.setApplicationName('DocMatch')
+    icon_file=asset_path('docmatch.ico')
+    if icon_file.is_file(): app.setWindowIcon(QIcon(str(icon_file)))
+    w=Window();w.show();sys.exit(app.exec())
