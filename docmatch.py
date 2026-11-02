@@ -445,16 +445,17 @@ class Window(QMainWindow):
             output.save(str(target), garbage=3, deflate=True)
 
     def choose_pdf_export_documents(self):
-        """Choose any combination of the three PDF output types."""
+        """Choose any combination of the four PDF output types."""
         dialog = QDialog(self)
         dialog.setWindowTitle('Ekspor Hasil Pemeriksaan PDF — Waybill')
-        dialog.resize(510, 310)
+        dialog.resize(590, 350)
         layout = QVBoxLayout(dialog)
         layout.addWidget(QLabel('Pilih satu atau beberapa dokumen untuk diekspor:'))
         choices = [
             ('ref', 'Dokumen Rujukan — PDF beranotasi'),
             ('exam', 'Dokumen Diperiksa — PDF beranotasi'),
-            ('corrected', 'Dokumen Hasil Koreksi — teks pengganti yang disetujui'),
+            ('corrected', 'Hasil Koreksi Bersih — penggantian teks yang disetujui'),
+            ('notes', 'Hasil Koreksi dengan Catatan — stabilo dan catatan di margin kanan'),
         ]
         boxes = []
         for key, label in choices:
@@ -469,8 +470,8 @@ class Window(QMainWindow):
         none_btn.clicked.connect(lambda: [cb.setChecked(False) for _, cb in boxes])
         row.addWidget(all_btn); row.addWidget(none_btn); row.addStretch()
         layout.addLayout(row)
-        note = QLabel('Hasil Koreksi hanya tersedia untuk penggantian teks yang telah disetujui\n'
-                      'dan dapat dipetakan dengan aman. Temuan yang tidak aman akan diblokir.')
+        note = QLabel('Koreksi Bersih hanya untuk perubahan yang disetujui dan aman.\n'
+                      'Koreksi dengan Catatan mempertahankan teks asli; hanya temuan yang dicentang yang diberi catatan.')
         note.setWordWrap(True)
         layout.addWidget(note)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
@@ -539,6 +540,101 @@ class Window(QMainWindow):
                                  fontname='helv', fontsize=font_size, color=(0,0,0), overlay=True)
             meta = dict(output.metadata or {})
             meta['subject'] = 'DocMatch - koreksi PDF terbatas yang disetujui; periksa hasil secara visual'
+            output.set_metadata(meta)
+            output.save(str(target), garbage=3, deflate=True)
+
+    def export_waybill_notes_pdf(self, target):
+        """Non-destructive, vector-preserving PDF with right-margin correction notes.
+
+        Only explicitly checked findings are annotated. The source PDF is never modified.
+        Each note is linked to its original highlighted rectangle. A note that cannot
+        be placed safely fails the export rather than obscuring document content.
+        """
+        if not self.exam_view.pdf:
+            raise ValueError('PDF dokumen diperiksa belum tersedia.')
+        approved = {i + 1: d for i, d in enumerate(self.diffs) if d.apply}
+        if not approved:
+            raise ValueError('Belum ada temuan yang dipilih. Centang temuan untuk diberi catatan koreksi.')
+        marks_by_page = {}
+        for mark in self.exam_marks:
+            number = mark.get('id')
+            if number in approved:
+                marks_by_page.setdefault(mark['page'], []).append(mark)
+        if not marks_by_page:
+            raise ValueError('Temuan terpilih tidak memiliki posisi stabilo pada PDF diperiksa.')
+        source = self.exam_view.pdf
+        margin = 245
+        with fitz.open() as output:
+            for pno, original in enumerate(source):
+                bounds = original.rect
+                page = output.new_page(width=bounds.width + margin, height=bounds.height)
+                page.show_pdf_page(fitz.Rect(0, 0, bounds.width, bounds.height), source, pno)
+                marks = marks_by_page.get(pno, [])
+                # Draw existing comparison highlights, including findings not selected
+                # for correction, to retain the same visual audit as 'Dokumen Diperiksa'.
+                for mark in (m for m in self.exam_marks if m['page'] == pno):
+                    rect = fitz.Rect(mark['rect'])
+                    if rect.is_empty or rect.is_infinite:
+                        continue
+                    rgb = {'Perubahan': (0.91, 0.29, 0.37),
+                           'Hilang': (0.96, 0.73, 0.24),
+                           'Berlebih': (0.22, 0.60, 0.91)}.get(mark.get('kind'), (0.91, 0.29, 0.37))
+                    shape = page.new_shape()
+                    shape.draw_rect(rect)
+                    shape.finish(color=rgb, fill=rgb, fill_opacity=0.24,
+                                 stroke_opacity=0.60, width=0.4)
+                    shape.commit(overlay=True)
+                if not marks:
+                    continue
+                page.draw_line(fitz.Point(bounds.width + 6, 15),
+                               fitz.Point(bounds.width + 6, bounds.height - 15),
+                               color=(0.70, 0.70, 0.70), width=0.6)
+                page.insert_text((bounds.width + 17, 26), 'CATATAN KOREKSI',
+                                 fontname='hebo', fontsize=10, color=(0.50, 0.05, 0.12))
+                # One note per finding, even if a finding has multiple word highlights.
+                groups = {}
+                for mark in marks:
+                    groups.setdefault(mark['id'], []).append(fitz.Rect(mark['rect']))
+                sorted_groups = sorted(groups.items(), key=lambda kv: min(r.y0 for r in kv[1]))
+                next_y = 43.0
+                for number, rectangles in sorted_groups:
+                    diff = approved[number]
+                    desired = (diff.reference_text or '').strip()
+                    if not desired:
+                        desired = '[HAPUS TEKS BERLEBIH]'
+                    desired = ' '.join(desired.split())
+                    anchor = min(rectangles, key=lambda r: (r.y0, r.x0))
+                    # Estimate note height and adapt to long correction values.
+                    note_width = margin - 30
+                    font_size = 9.5
+                    chars_per_line = max(18, int(note_width / (font_size * 0.52)))
+                    import textwrap
+                    lines = textwrap.wrap(desired, width=chars_per_line,
+                                          break_long_words=True, break_on_hyphens=False)
+                    lines = lines or ['[KOREKSI KOSONG]']
+                    height = 18 + 12 * len(lines) + 9
+                    top = max(next_y, min(anchor.y0, bounds.height - height - 13))
+                    if top + height > bounds.height - 8:
+                        raise ValueError(f'Halaman {pno+1}: catatan koreksi tidak muat di margin. '
+                                         'Kurangi temuan yang dipilih atau ekspor secara terpisah.')
+                    x0 = bounds.width + 14
+                    rect = fitz.Rect(x0, top, bounds.width + margin - 9, top + height)
+                    page.draw_rect(rect, color=(0.72, 0.52, 0.54), fill=(1, 0.98, 0.96), width=0.6)
+                    page.insert_text((x0 + 6, top + 12), f'#{number:02d}  {diff.kind}',
+                                     fontname='hebo', fontsize=8, color=(0.48, 0.05, 0.11))
+                    text_rect = fitz.Rect(x0 + 6, top + 17, rect.x1 - 5, rect.y1 - 4)
+                    result = page.insert_textbox(text_rect, desired, fontname='heit',
+                                                 fontsize=font_size, lineheight=1.18,
+                                                 color=(0.35, 0.06, 0.13))
+                    if result < 0:
+                        raise ValueError(f'Catatan #{number} tidak muat. Ekspor dibatalkan.')
+                    # Leader line points to the first highlighted word of the finding.
+                    page.draw_line(fitz.Point(anchor.x1, (anchor.y0 + anchor.y1)/2),
+                                   fitz.Point(x0, top + 9), color=(0.55, 0.15, 0.20), width=0.65)
+                    next_y = top + height + 6
+            meta = dict(output.metadata or {})
+            meta['subject'] = ('DocMatch - PDF diperiksa dengan stabilo dan catatan koreksi; '
+                               'teks asli tidak diubah; catatan bukan penggantian PDF')
             output.set_metadata(meta)
             output.save(str(target), garbage=3, deflate=True)
 
@@ -624,7 +720,8 @@ class Window(QMainWindow):
             outputs = {
                 'ref': ('Waybill_Rujukan_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'ref')),
                 'exam': ('Waybill_Diperiksa_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'exam')),
-                'corrected': ('Waybill_Hasil_Koreksi.pdf', self.export_waybill_corrected_pdf),
+                'corrected': ('Waybill_Hasil_Koreksi_Bersih.pdf', self.export_waybill_corrected_pdf),
+                'notes': ('Waybill_Hasil_Koreksi_Catatan.pdf', self.export_waybill_notes_pdf),
             }
             is_zip = len(selected) > 1
             default = 'DocMatch_Hasil_PDF.zip' if is_zip else outputs[selected[0]][0]
