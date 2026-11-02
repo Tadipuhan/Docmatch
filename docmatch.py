@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys, tempfile, shutil, json, difflib, re
 from pathlib import Path
 from dataclasses import asdict
-<<<<<<< HEAD
 import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush
@@ -12,15 +11,6 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
-=======
-import fitz
-from PySide6.QtCore import Qt, QSize, QRectF
-from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont
-from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox)
-from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
-from rules import parse_embedded, resolve_scope, selective_compare
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
 
 RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
 # Supersampling improves PDF readability without changing the displayed page dimensions.
@@ -130,11 +120,7 @@ def locate(pdf_path:Path,diffs,side:str):
 
 class Window(QMainWindow):
     def __init__(self):
-<<<<<<< HEAD
         super().__init__();self.setWindowTitle('DocMatch v0.6 — Manual Correction Editor (Offline)');self.resize(1550,920)
-=======
-        super().__init__();self.setWindowTitle('DocMatch v0.4 — Pemeriksaan Selektif (Offline)');self.resize(1550,920)
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[]
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
@@ -157,21 +143,14 @@ class Window(QMainWindow):
         self.filter=QComboBox();self.filter.addItems(['Semua','Perubahan','Hilang','Berlebih']);self.filter.currentTextChanged.connect(self.populate);s.addWidget(self.filter)
         self.list=QListWidget();self.list.currentRowChanged.connect(self.navigate);s.addWidget(self.list,1)
         self.detail=QLabel('Pilih ketidaksesuaian untuk melihat detail.');self.detail.setWordWrap(True);self.detail.setMinimumHeight(90);s.addWidget(self.detail)
-<<<<<<< HEAD
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor);s.addWidget(self.editor_btn)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
-=======
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
         self.apply_btn=QPushButton('Ekspor Koreksi Terpilih (DOCX)');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
         self.pdf_btn=QPushButton('Ekspor Koreksi (PDF)');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
         split.addWidget(side);split.setSizes([530,530,380]);main.addWidget(split,1)
-<<<<<<< HEAD
         self.status=QLabel('v0.6 · Seleksi paragraf + tag DOCMATCH · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
-=======
-        self.status=QLabel('v0.4 · Seleksi paragraf + tag DOCMATCH · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
         main.addWidget(self.status)
         self.setStyleSheet(f'''QMainWindow,QWidget{{background:{BG};color:{DARK};font-family:Segoe UI,Arial;font-size:12px}}
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:7px;padding:10px 13px}}
@@ -206,7 +185,6 @@ class Window(QMainWindow):
         if dlg.exec()==QDialog.DialogCode.Accepted:
             self.scope={i for i in range(items.count()) if items.item(i).checkState()==Qt.CheckState.Checked}
             self.scope_btn.setText(f'Paragraf dipilih: {len(self.scope)}')
-<<<<<<< HEAD
 
     def run(self):
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
@@ -270,70 +248,19 @@ class Window(QMainWindow):
         if self.editor_text is not None:
             return self.editor_text.split('\n')
         return corrected_blocks(self.examined,self.diffs)
-=======
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
 
-    def run(self):
-        if not self.ref_path or not self.exam_path:QMessageBox.warning(self,'Berkas belum lengkap','Pilih kedua dokumen.');return
-        try:
-            self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
-            parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
-            self.mode=self.rule_mode.currentData()
-            active=resolve_scope(parsed,self.scope,self.mode,self.all_scope.isChecked())
-            if not active:raise ValueError('Tidak ada parameter aktif. Pilih paragraf, tambahkan tag, atau centang seluruh dokumen.')
-            self.active_scope=active
-            if self.all_scope.isChecked():
-                self.diffs=compare(self.reference,self.examined);self.uncertain=[]
-            else:
-                self.diffs,self.uncertain,_=selective_compare(self.reference,self.examined,active)
-            # Separate directories avoid collisions when both inputs share a filename.
-            a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
-            refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
-            rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
-            self.ref_view.load(refpdf,rm);self.exam_view.load(exampdf,em);self.populate()
-            self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
-        except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
-    def populate(self,*args):
-        self.list.clear();self.visible=[]
-        for i,d in enumerate(self.diffs):
-            if self.filter.currentText() not in ('Semua',d.kind):continue
-            self.visible.append(i);label=(d.examined_text or d.reference_text).replace('\n',' ')[:95]
-            item=QListWidgetItem(f'#{i+1}  {d.kind}\n{label}');item.setData(Qt.ItemDataRole.UserRole,i)
-            item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked if d.apply else Qt.CheckState.Unchecked);self.list.addItem(item)
-        try:self.list.itemChanged.disconnect(self.changed)
-        except (RuntimeError,TypeError):pass
-        self.list.itemChanged.connect(self.changed)
-    def changed(self,item):self.diffs[item.data(Qt.ItemDataRole.UserRole)].apply=item.checkState()==Qt.CheckState.Checked
-    def navigate(self,row):
-        if row<0 or row>=len(self.visible):return
-        i=self.visible[row];d=self.diffs[i];n=i+1
-        if n in self.ref_pages:self.ref_view.goto(self.ref_pages[n])
-        if n in self.exam_pages:self.exam_view.goto(self.exam_pages[n])
-        self.detail.setText(f'#{n} · {d.kind}\n\nRujukan: {d.reference_text[:240] or "(tidak ada)"}\n\nDiperiksa: {d.examined_text[:240] or "(hilang)"}\n\nCatatan: penanda halaman adalah perkiraan berbasis pencarian teks.')
-    def ensure(self):
-        if not self.diffs:QMessageBox.warning(self,'Belum dibandingkan','Jalankan perbandingan terlebih dahulu.');return False
-        return True
     def export_docx(self):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan DOCX','docmatch_hasil.docx','DOCX (*.docx)')
         if name:
-<<<<<<< HEAD
             try:save_annotated_docx(self.output_blocks(),Path(name),self.editor_source or self.examined);QMessageBox.information(self,'Selesai','DOCX disimpan. Paragraf yang berubah diberi stabilo. Layout asli belum dipertahankan.')
-=======
-            try:save_docx(corrected_blocks(self.examined,self.diffs),Path(name));QMessageBox.information(self,'Selesai','DOCX berhasil disimpan. Tata letak asli belum dipertahankan.')
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
             except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def export_pdf(self):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan PDF','docmatch_hasil.pdf','PDF (*.pdf)')
         if name:
             try:
-<<<<<<< HEAD
                 src=self.work/'corrected.docx';save_annotated_docx(self.output_blocks(),src,self.editor_source or self.examined)
-=======
-                src=self.work/'corrected.docx';save_docx(corrected_blocks(self.examined,self.diffs),src)
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
                 pdf=libreoffice_convert(src,'pdf',self.work);shutil.copyfile(pdf,name)
                 QMessageBox.information(self,'Selesai','PDF berhasil disimpan.')
             except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
@@ -341,11 +268,7 @@ class Window(QMainWindow):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-<<<<<<< HEAD
             report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Seleksi hanya mencakup blok teks; tabel dan header/footer tidak dicakup. Ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
-=======
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'limitations':'Seleksi hanya mencakup blok teks; tabel dan header/footer tidak dicakup. Ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
