@@ -1,6 +1,6 @@
 """DocMatch v0.4: local desktop visual document comparison."""
 from __future__ import annotations
-import sys, tempfile, shutil, json, difflib, re
+import sys, tempfile, shutil, json, difflib, re, io
 from pathlib import Path
 from dataclasses import asdict
 import pymupdf as fitz
@@ -183,8 +183,8 @@ class Window(QMainWindow):
         self.detail=QLabel('Pilih ketidaksesuaian untuk melihat detail.');self.detail.setWordWrap(True);self.detail.setMinimumHeight(90);s.addWidget(self.detail)
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor);s.addWidget(self.editor_btn)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
-        self.apply_btn=QPushButton('Ekspor Koreksi Terpilih (DOCX)');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
-        self.pdf_btn=QPushButton('Ekspor Koreksi (PDF)');self.pdf_btn.clicked.connect(self.export_pdf)
+        self.apply_btn=QPushButton('Ekspor DOCX / Laporan Waybill');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
+        self.pdf_btn=QPushButton('Ekspor PDF / Anotasi Waybill');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
         split.addWidget(side)
@@ -409,10 +409,69 @@ class Window(QMainWindow):
         self.detail.setText(f'#{n} · {d.kind}' + (f' · {d.field}' if getattr(d,'field','') else '') +
             f'\n\nRujukan: {d.reference_text[:240] or "(tidak ada)"}\n\nDiperiksa: {d.examined_text[:240] or "(hilang)"}\n\nCatatan: posisi teks hasil ekstraksi PDF perlu diverifikasi manual.')
     def ensure(self):
-        if self.waybill_mode and self.sender() in (self.apply_btn,self.pdf_btn):
-            QMessageBox.warning(self,'Ekspor koreksi Waybill','Ekspor koreksi otomatis belum aman untuk PDF Waybill. Ekspor laporan JSON tersedia.');return False
-        if not self.diffs:QMessageBox.warning(self,'Belum dibandingkan','Jalankan perbandingan terlebih dahulu.');return False
+        if not self.diffs:
+            QMessageBox.warning(self,'Belum dibandingkan','Jalankan perbandingan terlebih dahulu.');return False
         return True
+    def export_waybill_pdf(self, target):
+        # Non-destructive audit copy: preserves original PDF pages and draws transparent annotations.
+        if not self.exam_view.pdf:raise ValueError('Preview PDF dokumen diperiksa belum tersedia.')
+        source=self.exam_view.pdf
+        with fitz.open() as output:
+            output.insert_pdf(source)
+            for mark in self.exam_marks:
+                pno=mark['page']
+                if pno<0 or pno>=len(output):continue
+                rect=fitz.Rect(mark['rect'])
+                if rect.is_empty or rect.is_infinite:continue
+                kind=mark.get('kind','Perubahan')
+                rgb={'Perubahan':(0.91,0.29,0.37),'Hilang':(0.96,0.73,0.24),'Berlebih':(0.22,0.60,0.91)}.get(kind,(0.91,0.29,0.37))
+                page=output[pno]
+                shape=page.new_shape()
+                shape.draw_rect(rect)
+                shape.finish(color=rgb,fill=rgb,fill_opacity=0.24,stroke_opacity=0.60,width=0.4)
+                shape.commit(overlay=True)
+            output.set_metadata({**output.metadata,'subject':'DocMatch Waybill - salinan audit beranotasi, bukan koreksi otomatis'})
+            output.save(str(target),garbage=3,deflate=True)
+    def export_waybill_docx(self,target):
+        # Editable findings with a faithful image of each original page. PDF text is NOT rebuilt as editable layout.
+        from docx import Document
+        from docx.shared import Inches,Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        doc=Document();section=doc.sections[0]
+        section.top_margin=Inches(.55);section.bottom_margin=Inches(.55)
+        section.left_margin=Inches(.65);section.right_margin=Inches(.65)
+        doc.add_heading('DocMatch — Laporan Pemeriksaan Waybill',0)
+        doc.add_paragraph('Dokumen diperiksa: '+str(self.exam_path.name))
+        doc.add_paragraph('Dokumen rujukan: '+str(self.ref_path.name))
+        doc.add_paragraph('Status: laporan audit, BUKAN dokumen Waybill yang sudah dikoreksi otomatis. Teks temuan dapat diedit pada tabel di bawah.')
+        doc.add_heading('Daftar temuan (dapat diedit)',level=1)
+        table=doc.add_table(rows=1,cols=5);table.style='Table Grid';table.alignment=WD_TABLE_ALIGNMENT.CENTER
+        for cell,text in zip(table.rows[0].cells,['No.','Field','Kategori','Rujukan','Diperiksa']):cell.text=text
+        for i,d in enumerate(self.diffs,1):
+            row=table.add_row()
+            for cell,text in zip(row.cells,[str(i),str(getattr(d,'field','')),str(d.kind),str(d.reference_text),str(d.examined_text)]):cell.text=text
+        doc.add_page_break();doc.add_heading('Lampiran — Halaman Waybill yang ditandai',level=1)
+        if not self.exam_view.pdf:raise ValueError('Preview PDF belum tersedia')
+        pdf=self.exam_view.pdf
+        for pno,page in enumerate(pdf):
+            doc.add_heading(f'Halaman {pno+1}',level=2)
+            # Rasterize a marked copy for the visual appendix; source PDF remains unchanged.
+            with fitz.open() as one:
+                one.insert_pdf(pdf,from_page=pno,to_page=pno)
+                for mark in self.exam_marks:
+                    if mark['page']!=pno:continue
+                    rect=fitz.Rect(mark['rect']);kind=mark.get('kind','Perubahan')
+                    rgb={'Perubahan':(0.91,0.29,0.37),'Hilang':(0.96,0.73,0.24),'Berlebih':(0.22,0.60,0.91)}.get(kind,(0.91,0.29,0.37))
+                    sh=one[0].new_shape();sh.draw_rect(rect);sh.finish(color=rgb,fill=rgb,fill_opacity=.24,width=.4);sh.commit()
+                pix=one[0].get_pixmap(matrix=fitz.Matrix(1.8,1.8),alpha=False)
+                stream=io.BytesIO(pix.tobytes('png'))
+                usable=section.page_width-section.left_margin-section.right_margin
+                doc.add_picture(stream,width=usable)
+            if pno<len(pdf)-1:doc.add_page_break()
+        doc.save(str(target))
     def open_editor(self):
         if not self.exam_path or not self.reference:
             QMessageBox.warning(self,'Belum siap','Pilih dokumen dan jalankan perbandingan terlebih dahulu.');return
@@ -437,22 +496,32 @@ class Window(QMainWindow):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan DOCX','docmatch_hasil.docx','DOCX (*.docx)')
         if name:
-            try:save_annotated_docx(self.output_blocks(),Path(name),self.editor_source or self.examined);QMessageBox.information(self,'Selesai','DOCX disimpan. Paragraf yang berubah diberi stabilo. Layout asli belum dipertahankan.')
+            try:
+                if self.waybill_mode:
+                    self.export_waybill_docx(name)
+                    QMessageBox.information(self,'Selesai','Laporan DOCX Waybill disimpan: tabel temuan dapat diedit, halaman Waybill adalah gambar beranotasi. Ini bukan koreksi otomatis pada dokumen asli.')
+                else:
+                    save_annotated_docx(self.output_blocks(),Path(name),self.editor_source or self.examined)
+                    QMessageBox.information(self,'Selesai','DOCX disimpan. Paragraf yang berubah diberi stabilo. Layout asli belum dipertahankan.')
             except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def export_pdf(self):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan PDF','docmatch_hasil.pdf','PDF (*.pdf)')
         if name:
             try:
-                src=self.work/'corrected.docx';save_annotated_docx(self.output_blocks(),src,self.editor_source or self.examined)
-                pdf=libreoffice_convert(src,'pdf',self.work);shutil.copyfile(pdf,name)
-                QMessageBox.information(self,'Selesai','PDF berhasil disimpan.')
+                if self.waybill_mode:
+                    self.export_waybill_pdf(name)
+                    QMessageBox.information(self,'Selesai','PDF audit Waybill disimpan dengan layout asli dan stabilo transparan. Isi dokumen belum dikoreksi otomatis.')
+                else:
+                    src=self.work/'corrected.docx';save_annotated_docx(self.output_blocks(),src,self.editor_source or self.examined)
+                    pdf=libreoffice_convert(src,'pdf',self.work);shutil.copyfile(pdf,name)
+                    QMessageBox.information(self,'Selesai','PDF berhasil disimpan.')
             except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def export_report(self):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekstraksi berdasarkan koordinat template ANL, belum universal; koreksi PDF tidak otomatis. Mode umum: ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
+            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
