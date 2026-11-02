@@ -7,7 +7,7 @@ import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
@@ -123,9 +123,46 @@ def locate(pdf_path:Path,diffs,side:str):
             if not found:misses.append(n)
     return marks,pages,misses
 
+def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, kind='Perubahan'):
+    """Build a contextual note from the examined PDF's actual text line.
+
+    Only replace an unambiguous exact token/phrase; otherwise preserve the
+    reference fragment so the user can review the note manually.
+    """
+    fallback = reference_fragment.strip() or '[HAPUS TEKS BERLEBIH]'
+    if kind != 'Perubahan' or not examined_fragment.strip():
+        return fallback
+    if page_no is None or not (0 <= page_no < len(pdf)):
+        return fallback
+    page = pdf[page_no]
+    old = ' '.join(examined_fragment.split())
+    new = ' '.join(reference_fragment.split())
+    if not new:
+        return fallback
+    # Extract original visual lines, not a text dump: this keeps unrelated
+    # table columns and the next lines out of the suggested correction.
+    lines = []
+    for block in page.get_text('dict').get('blocks', []):
+        if 'lines' not in block:
+            continue
+        for line in block['lines']:
+            spans = line.get('spans', [])
+            content = ''.join(span.get('text', '') for span in spans).strip()
+            if content:
+                lines.append(content)
+    # Match whole tokens where possible. This avoids replacing PT inside
+    # another word or a similar number elsewhere in the Waybill.
+    pattern = re.compile(r'(?<!\w)' + re.escape(old) + r'(?!\w)', re.IGNORECASE)
+    candidates = [line for line in lines if pattern.search(line)]
+    if len(candidates) == 1 and len(pattern.findall(candidates[0])) == 1:
+        return pattern.sub(lambda _m: new, candidates[0], count=1)
+    # PDF text sometimes splits a word across spans or OCR-like fragments.
+    # Do not invent surrounding words when the source line is ambiguous.
+    return fallback
+
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v0.8 — Step Wizard (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.3 — Step Wizard (Offline)');self.resize(1100,740)
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
@@ -184,7 +221,7 @@ class Window(QMainWindow):
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor);s.addWidget(self.editor_btn)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None;self.note_overrides={}
         self.apply_btn=QPushButton('Ekspor DOCX / Laporan Waybill');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
-        self.notes_btn=QPushButton('Preview & Edit Catatan Koreksi…');self.notes_btn.clicked.connect(self.edit_correction_notes);s.addWidget(self.notes_btn)
+        self.notes_btn=QPushButton('Preview & Edit Catatan Koreksi…');self.notes_btn.clicked.connect(self.visual_correction_notes);s.addWidget(self.notes_btn)
         self.pdf_btn=QPushButton('Ekspor Hasil Pemeriksaan PDF…');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
@@ -544,6 +581,165 @@ class Window(QMainWindow):
             output.set_metadata(meta)
             output.save(str(target), garbage=3, deflate=True)
 
+    def default_correction_note(self, number):
+        diff = self.diffs[number - 1]
+        if not self.waybill_mode or not self.exam_view.pdf:
+            return diff.reference_text
+        pages = [m['page'] for m in self.exam_marks if m['id'] == number]
+        page_no = pages[0] if pages else None
+        return full_line_correction(self.exam_view.pdf, page_no,
+                                    diff.examined_text, diff.reference_text, diff.kind)
+
+    def visual_correction_notes(self):
+        """In-place editing of the red note boxes on a rendered annotated PDF.
+
+        The PDF is a preview only. Changes are kept in note_overrides and the
+        final export is regenerated as vector PDF using the existing writer.
+        """
+        if not self.ensure():
+            return
+        if not self.waybill_mode:
+            QMessageBox.information(self, 'Mode Waybill', 'Preview catatan tersedia pada mode Waybill.')
+            return
+        if not self.exam_view.pdf:
+            QMessageBox.warning(self, 'PDF belum tersedia', 'Jalankan pemeriksaan terlebih dahulu.')
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle('DocMatch v1.2 — Edit Langsung di Kotak Merah')
+        dialog.resize(1380, 850)
+        root = QVBoxLayout(dialog)
+        root.addWidget(QLabel('Klik dan ketik langsung pada kotak catatan merah. PDF asli tetap utuh.'))
+        bar = QHBoxLayout()
+        prev = QPushButton('‹ Halaman sebelumnya')
+        next_btn = QPushButton('Halaman berikutnya ›')
+        page_label = QLabel()
+        bar.addWidget(prev); bar.addWidget(page_label); bar.addWidget(next_btn)
+        bar.addStretch()
+        root.addLayout(bar)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(False)
+        scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        canvas = QLabel()
+        canvas.setStyleSheet('background:white')
+        scroll.setWidget(canvas)
+        root.addWidget(scroll, 1)
+        footer = QHBoxLayout()
+        save_btn = QPushButton('Simpan Perubahan')
+        export_btn = QPushButton('Ekspor PDF Catatan yang Diedit…')
+        close_btn = QPushButton('Tutup')
+        for btn in (save_btn, export_btn, close_btn): footer.addWidget(btn)
+        root.addLayout(footer)
+        working = {i + 1: self.note_overrides.get(i + 1, self.default_correction_note(i + 1))
+                   for i, d in enumerate(self.diffs)}
+        # Only selected findings with actual PDF positions can be drawn.
+        marks_by_page = {}
+        for m in self.exam_marks:
+            n = m['id']
+            if 1 <= n <= len(self.diffs) and self.diffs[n-1].apply:
+                marks_by_page.setdefault(m['page'], {}).setdefault(n, []).append(m['rect'])
+        if not marks_by_page:
+            QMessageBox.warning(self, 'Tanpa catatan', 'Pilih temuan yang memiliki stabilo pada PDF terlebih dahulu.')
+            return
+        state = {'page': 0, 'editors': [], 'pdf': None}
+        zoom = 1.35
+        def commit():
+            for number, editor in state['editors']:
+                working[number] = editor.toPlainText()
+            self.note_overrides = dict(working)
+        def refresh():
+            commit()
+            for _, editor in state['editors']:
+                editor.setParent(None)
+                editor.deleteLater()
+            state['editors'] = []
+            if state['pdf'] is not None:
+                state['pdf'].close()
+                state['pdf'] = None
+            # Re-render using the SAME PDF writer as the export, so positions
+            # and line connectors match the actual exported document.
+            self.note_overrides = dict(working)
+            with tempfile.TemporaryDirectory(prefix='docmatch_visual_') as td:
+                target = Path(td) / 'preview.pdf'
+                self.export_waybill_notes_pdf(target)
+                state['pdf'] = fitz.open(target)
+            pdf = state['pdf']
+            page_no = state['page']
+            page = pdf[page_no]
+            pix = page.get_pixmap(matrix=fitz.Matrix(zoom * 1.5, zoom * 1.5), alpha=False)
+            img = QImage(pix.samples, pix.width, pix.height, pix.stride,
+                         QImage.Format.Format_RGB888).copy()
+            pm = QPixmap.fromImage(img)
+            pm.setDevicePixelRatio(1.5)
+            canvas.setPixmap(pm)
+            canvas.resize(pm.deviceIndependentSize().toSize())
+            # Red-bordered rectangles are drawn by export_waybill_notes_pdf.
+            original_width = self.exam_view.pdf[page_no].rect.width
+            note_rects = []
+            for drawing in page.get_drawings():
+                rect = drawing.get('rect')
+                if (rect is not None and rect.x0 > original_width + 7 and
+                    rect.width > 90 and rect.height > 22 and
+                    drawing.get('fill') is not None):
+                    note_rects.append(rect)
+            note_rects.sort(key=lambda r: (r.y0, r.x0))
+            groups = marks_by_page.get(page_no, {})
+            numbers = sorted(groups, key=lambda n: min(r.y0 for r in groups[n]))
+            if len(note_rects) != len(numbers):
+                # Never silently connect an editor to the wrong correction.
+                raise ValueError('Tidak dapat mencocokkan kotak catatan dengan temuan. '
+                                 'Gunakan editor daftar untuk dokumen ini.')
+            for number, rect in zip(numbers, note_rects):
+                editor = QPlainTextEdit(canvas)
+                editor.setPlainText(working[number])
+                editor.setToolTip(f'Catatan #{number:02d} — ketik untuk mengubah')
+                editor.setStyleSheet('QPlainTextEdit { background: #FFF9F6; color: #850D1C; '
+                                     'border: 1px solid #BD8A91; font: italic 12px Arial; '
+                                     'padding: 3px; } QPlainTextEdit:focus { border: 2px solid #850D1C; }')
+                x = round((rect.x0 + 4) * zoom)
+                y = round((rect.y0 + 17) * zoom)
+                w = max(85, round((rect.width - 8) * zoom))
+                h = max(26, round((rect.height - 20) * zoom))
+                editor.setGeometry(x, y, w, h)
+                editor.show()
+                state['editors'].append((number, editor))
+            page_label.setText(f'Halaman {page_no+1} / {len(pdf)} · {len(numbers)} catatan dapat diedit')
+            prev.setEnabled(page_no > 0)
+            next_btn.setEnabled(page_no + 1 < len(pdf))
+        def navigate(delta):
+            commit()
+            state['page'] += delta
+            try:
+                refresh()
+            except Exception as exc:
+                QMessageBox.critical(dialog, 'Preview gagal', str(exc))
+        def export():
+            commit()
+            filename, _ = QFileDialog.getSaveFileName(dialog, 'Ekspor PDF hasil edit',
+                'Waybill_Hasil_Koreksi_Catatan.pdf', 'PDF (*.pdf)')
+            if not filename:
+                return
+            try:
+                self.export_waybill_notes_pdf(Path(filename).with_suffix('.pdf'))
+                QMessageBox.information(dialog, 'Berhasil', 'PDF dengan catatan terbaru berhasil diekspor.')
+            except Exception as exc:
+                QMessageBox.critical(dialog, 'Gagal ekspor', str(exc))
+        prev.clicked.connect(lambda: navigate(-1))
+        next_btn.clicked.connect(lambda: navigate(1))
+        save_btn.clicked.connect(commit)
+        export_btn.clicked.connect(export)
+        close_btn.clicked.connect(dialog.accept)
+        try:
+            refresh()
+        except Exception as exc:
+            QMessageBox.warning(dialog, 'Preview tidak tersedia', str(exc))
+            dialog.reject()
+            self.edit_correction_notes()
+            return
+        dialog.exec()
+        commit()
+        if state['pdf'] is not None:
+            state['pdf'].close()
+
     def edit_correction_notes(self):
         """Edit note values independently of the comparison/reference text.
 
@@ -570,7 +766,7 @@ class Window(QMainWindow):
         form.addWidget(QLabel('Catatan koreksi (dapat diedit):')); form.addWidget(correction, 1)
         form.addWidget(enabled)
         split.addWidget(findings); split.addWidget(pane); split.setSizes([360, 540]); root.addWidget(split, 1)
-        working = {i + 1: self.note_overrides.get(i + 1, d.reference_text) for i, d in enumerate(self.diffs)}
+        working = {i + 1: self.note_overrides.get(i + 1, self.default_correction_note(i + 1)) for i, d in enumerate(self.diffs)}
         active = [bool(d.apply) for d in self.diffs]
         for i, d in enumerate(self.diffs):
             findings.addItem(f'#{i+1:02d}  {getattr(d, "field", "")} · {d.kind} · {d.examined_text[:65]}')
@@ -710,7 +906,7 @@ class Window(QMainWindow):
                 next_y = 43.0
                 for number, rectangles in sorted_groups:
                     diff = approved[number]
-                    desired = (self.note_overrides.get(number, diff.reference_text) or '').strip()
+                    desired = (self.note_overrides.get(number, self.default_correction_note(number)) or '').strip()
                     if not desired:
                         desired = '[HAPUS TEKS BERLEBIH]'
                     desired = ' '.join(desired.split())
