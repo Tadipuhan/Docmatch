@@ -7,7 +7,7 @@ import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
@@ -42,7 +42,7 @@ class Paper(QWidget):
         lay.addLayout(bar)
         self.scroll=QScrollArea();self.scroll.setWidgetResizable(False);self.scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop)
         self.canvas=QLabel('Pilih dokumen lalu klik Bandingkan');self.canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.canvas.setStyleSheet('background:white; color:#6B7280;');self.canvas.setMinimumSize(420,560)
+        self.canvas.setStyleSheet('background:white; color:#6B7280;');self.canvas.setMinimumSize(240,320)
         self.scroll.setWidget(self.canvas);lay.addWidget(self.scroll,1)
         self.prev.clicked.connect(lambda:self.goto(self.page-1));self.next.clicked.connect(lambda:self.goto(self.page+1))
         self.plus.clicked.connect(lambda:self.set_zoom(self.zoom+.15));self.minus.clicked.connect(lambda:self.set_zoom(self.zoom-.15))
@@ -64,24 +64,28 @@ class Paper(QWidget):
         if self.highlights:
             painter=QPainter(img)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
+            seen_markers=set()
             for m in self.marks:
                 if m['page']!=self.page:continue
                 rect=m['rect']*fitz.Matrix(scale,scale)
                 # Semi-transparent highlighter: original black text remains visible.
-                base=QColor('#E84559' if m['side']=='exam' else '#36C977')
+                base=QColor({'Perubahan':'#E84A5F','Hilang':'#F5B942','Berlebih':'#3899E8'}.get(m.get('kind'),'#E84A5F'))
                 fill=QColor(base);fill.setAlpha(HIGHLIGHT_ALPHA)
                 painter.fillRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),fill)
                 outline=QColor(base);outline.setAlpha(155)
                 painter.setBrush(Qt.BrushStyle.NoBrush)
                 painter.setPen(QPen(outline,max(1,scale*.65)))
                 painter.drawRect(QRectF(rect.x0,rect.y0,rect.width,rect.height))
-                # Number marker sits ABOVE the text, not on top of the letters.
+                # One numbered marker per finding per page, despite multiple highlighted tokens.
+                marker_key=(m['id'],m['page'])
+                if marker_key in seen_markers:continue
+                seen_markers.add(marker_key)
                 diameter=15*scale
                 x=max(2*scale,min(img.width()-diameter-2*scale,rect.x1-diameter/2))
                 y=rect.y0-diameter-4*scale
                 if y<0:y=min(img.height()-diameter,rect.y1+3*scale)
                 painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor('#B00020' if m['side']=='exam' else '#13834A'))
+                painter.setBrush(QColor({'Perubahan':'#B00020','Hilang':'#A56A00','Berlebih':'#1765A9'}.get(m.get('kind'),'#B00020')))
                 painter.drawEllipse(int(x),int(y),int(diameter),int(diameter))
                 painter.setPen(QColor('white'))
                 painter.setFont(QFont('Arial',max(8,int(8*scale)),QFont.Weight.Bold))
@@ -121,30 +125,61 @@ def locate(pdf_path:Path,diffs,side:str):
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v0.6 — Manual Correction Editor (Offline)');self.resize(1550,920)
+        super().__init__();self.setWindowTitle('DocMatch v0.8 — Step Wizard (Offline)');self.resize(1100,740)
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
         header=QHBoxLayout();brand=QLabel('▣  DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
         header.addWidget(brand);header.addWidget(QLabel('Pembanding & Koreksi Dokumen  •  100% Offline'));header.addStretch();main.addLayout(header)
-        toolbar=QHBoxLayout();self.ref_btn=QPushButton('Pilih Dokumen Rujukan');self.exam_btn=QPushButton('Pilih Dokumen Diperiksa')
-        self.run_btn=QPushButton('⌕  Bandingkan Dokumen');self.run_btn.setObjectName('primary')
-        self.ref_btn.clicked.connect(lambda:self.pick('ref'));self.exam_btn.clicked.connect(lambda:self.pick('exam'));self.run_btn.clicked.connect(self.run)
-        for b in (self.ref_btn,self.exam_btn,self.run_btn):toolbar.addWidget(b)
-        main.addLayout(toolbar)
-        rules_bar=QHBoxLayout();rules_bar.addWidget(QLabel('Mode parameter:'))
+        # Step Wizard ribbon: only this top area changes; viewers and comparison engine remain intact.
+        self.wizard_steps=[]
+        stepbar=QHBoxLayout();stepbar.setSpacing(7)
+        for index,label in enumerate(('1  Pilih Dokumen','2  Atur Parameter','3  Perbandingan','4  Hasil & Ekspor')):
+            btn=QPushButton(label);btn.setObjectName('wizardStep')
+            btn.clicked.connect(lambda checked=False, i=index:self.show_step(i))
+            stepbar.addWidget(btn,1);self.wizard_steps.append(btn)
+        main.addLayout(stepbar)
+        self.wizard_stack=QStackedWidget();main.addWidget(self.wizard_stack)
+        # Step 1: document sources
+        step1=QWidget();step1_layout=QHBoxLayout(step1);step1_layout.setContentsMargins(2,7,2,7)
+        self.ref_btn=QPushButton('Pilih Dokumen Rujukan');self.exam_btn=QPushButton('Pilih Dokumen Diperiksa')
+        self.ref_btn.clicked.connect(lambda:self.pick('ref'));self.exam_btn.clicked.connect(lambda:self.pick('exam'))
+        step1_layout.addWidget(self.ref_btn,1);step1_layout.addWidget(self.exam_btn,1)
+        next1=QPushButton('Atur Parameter  →');next1.clicked.connect(lambda:self.show_step(1));step1_layout.addWidget(next1)
+        self.wizard_stack.addWidget(step1)
+        # Step 2: comparison scope
+        step2=QWidget();rules_bar=QHBoxLayout(step2);rules_bar.setContentsMargins(2,7,2,7)
+        rules_bar.addWidget(QLabel('Mode parameter:'))
         self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual');self.rule_mode.addItem('Waybill (preset field)','waybill')
-        rules_bar.addWidget(self.rule_mode)
+        rules_bar.addWidget(self.rule_mode,1)
         self.scope_btn=QPushButton('Pilih Paragraf Rujukan…');self.scope_btn.clicked.connect(self.choose_scope);rules_bar.addWidget(self.scope_btn)
         self.waybill_btn=QPushButton('Atur Field Waybill…');self.waybill_btn.clicked.connect(self.choose_waybill);rules_bar.addWidget(self.waybill_btn)
-        self.rule_mode.currentIndexChanged.connect(self.mode_changed);self.mode_changed()
-        self.all_scope=QCheckBox('Periksa seluruh dokumen');rules_bar.addWidget(self.all_scope);rules_bar.addStretch();main.addLayout(rules_bar)
+        self.all_scope=QCheckBox('Periksa seluruh dokumen');rules_bar.addWidget(self.all_scope)
+        next2=QPushButton('Lanjutkan  →');next2.clicked.connect(lambda:self.show_step(2));rules_bar.addWidget(next2)
+        self.wizard_stack.addWidget(step2)
+        # Step 3: run comparison
+        step3=QWidget();step3_layout=QHBoxLayout(step3);step3_layout.setContentsMargins(2,7,2,7)
+        step3_layout.addWidget(QLabel('Periksa dokumen sesuai parameter yang dipilih.'))
+        step3_layout.addStretch()
+        self.run_btn=QPushButton('⌕  Bandingkan Dokumen');self.run_btn.setObjectName('primary')
+        self.run_btn.clicked.connect(self.run);step3_layout.addWidget(self.run_btn)
+        next3=QPushButton('Hasil & Ekspor  →');next3.clicked.connect(lambda:self.show_step(3));step3_layout.addWidget(next3)
+        self.wizard_stack.addWidget(step3)
+        # Step 4: result actions remain in the existing right-hand inspector.
+        step4=QWidget();step4_layout=QHBoxLayout(step4);step4_layout.setContentsMargins(2,7,2,7)
+        step4_layout.addWidget(QLabel('Tinjau daftar ketidaksesuaian di kanan, lalu gunakan tombol ekspor pada panel tersebut.'))
+        step4_layout.addStretch()
+        back4=QPushButton('←  Perbandingan');back4.clicked.connect(lambda:self.show_step(2));step4_layout.addWidget(back4)
+        self.wizard_stack.addWidget(step4)
+        self.rule_mode.currentIndexChanged.connect(self.mode_changed)
+        self.mode_changed()
+        self.show_step(0)
         split=QSplitter(Qt.Orientation.Horizontal);self.ref_view=Paper('DOKUMEN RUJUKAN');self.exam_view=Paper('DOKUMEN DIPERIKSA')
         split.addWidget(self.ref_view);split.addWidget(self.exam_view)
         side=QWidget();side.setMinimumWidth(320);side.setMaximumWidth(440);s=QVBoxLayout(side)
         heading=QLabel('Daftar Ketidaksesuaian');heading.setStyleSheet('font-size:17px;font-weight:700');s.addWidget(heading)
-        self.filter=QComboBox();self.filter.addItems(['Semua','Perubahan','Hilang','Berlebih']);self.filter.currentTextChanged.connect(self.populate);s.addWidget(self.filter)
-        self.list=QListWidget();self.list.currentRowChanged.connect(self.navigate);s.addWidget(self.list,1)
+        self.filter=QComboBox();self.filter.addItems(['Semua','Perubahan']);self.filter.currentTextChanged.connect(self.populate);s.addWidget(self.filter)
+        self.list=QTreeWidget();self.list.setHeaderHidden(True);self.list.itemClicked.connect(self.navigate_tree);s.addWidget(self.list,1)
         self.detail=QLabel('Pilih ketidaksesuaian untuk melihat detail.');self.detail.setWordWrap(True);self.detail.setMinimumHeight(90);s.addWidget(self.detail)
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor);s.addWidget(self.editor_btn)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
@@ -152,14 +187,42 @@ class Window(QMainWindow):
         self.pdf_btn=QPushButton('Ekspor Koreksi (PDF)');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         for b in (self.apply_btn,self.pdf_btn,self.report_btn):s.addWidget(b)
-        split.addWidget(side);split.setSizes([530,530,380]);main.addWidget(split,1)
-        self.status=QLabel('v0.6 · Seleksi paragraf + tag DOCMATCH · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
+        split.addWidget(side)
+        # Allow all three panels to shrink; preserve independent PDF scrolling.
+        for viewer in (self.ref_view, self.exam_view):
+            viewer.setMinimumWidth(0)
+            viewer.scroll.setMinimumWidth(0)
+            viewer.canvas.setMinimumWidth(240)
+        side.setMinimumWidth(320)
+        split.setChildrenCollapsible(False)
+        split.setStretchFactor(0, 5)
+        split.setStretchFactor(1, 5)
+        split.setStretchFactor(2, 3)
+        main.addWidget(split,1)
+        from PySide6.QtWidgets import QApplication
+        available=QApplication.primaryScreen().availableGeometry()
+        width=min(1600, max(900, int(available.width()*0.98)))
+        height=min(980, max(600, int(available.height()*0.94)))
+        self.resize(min(width,available.width()),min(height,available.height()))
+        self.move(available.x()+max(0,(available.width()-self.width())//2),
+                  available.y()+max(0,(available.height()-self.height())//2))
+        split.setSizes([530,530,380])
+        self.status=QLabel('v0.7 · Seleksi paragraf + tag DOCMATCH · Render PDF 2× lebih tajam · Stabilo transparan dapat diaktifkan/nonaktifkan · Seluruh proses offline.')
         main.addWidget(self.status)
         self.setStyleSheet(f'''QMainWindow,QWidget{{background:{BG};color:{DARK};font-family:Segoe UI,Arial;font-size:12px}}
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:7px;padding:10px 13px}}
           QPushButton:hover{{border-color:{RED}}} QPushButton#primary{{background:{RED};color:white;border:0;font-weight:700}}
           QScrollArea{{border:1px solid #E0E2E6;background:#E8EAEE}} QListWidget,QComboBox{{background:white;border:1px solid #D8DADF;border-radius:6px;padding:7px}}
           QListWidget::item{{padding:8px;border-bottom:1px solid #EEEEEE}} QListWidget::item:selected{{background:#F6DCE0;color:#242424}}''')
+    def show_step(self,index):
+        self.wizard_stack.setCurrentIndex(index)
+        for i,button in enumerate(self.wizard_steps):
+            button.setProperty('activeStep',i==index)
+            button.setStyleSheet(
+                'background:#850D1C;color:white;border:1px solid #850D1C;font-weight:700;' if i==index
+                else 'background:white;color:#333;border:1px solid #D8DADF;font-weight:600;'
+            )
+
     def pick(self,side):
         name,_=QFileDialog.getOpenFileName(self,'Pilih dokumen','','Dokumen (*.docx *.pdf *.doc)')
         if not name:return
@@ -174,14 +237,34 @@ class Window(QMainWindow):
 
     def choose_waybill(self):
         dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
-        layout=QVBoxLayout(dlg);layout.addWidget(QLabel('Pilih field yang akan dibandingkan. Preset untuk layout ANL Waybill.'))
-        items=QListWidget();layout.addWidget(items)
+        layout=QVBoxLayout(dlg)
+        layout.addWidget(QLabel('Pilih field yang akan dibandingkan. Preset untuk layout ANL Waybill.'))
+        items=QListWidget()
         for name,_ in FIELDS:
-            item=QListWidgetItem(name);item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+            item=QListWidgetItem(name)
+            item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields else Qt.CheckState.Unchecked)
             items.addItem(item)
+        controls=QHBoxLayout()
+        select_all=QPushButton('Pilih Semua')
+        clear_all=QPushButton('Hapus Semua')
+        controls.addWidget(select_all);controls.addWidget(clear_all);controls.addStretch()
+        layout.addLayout(controls)
+        layout.addWidget(items)
+        def set_all(state):
+            for i in range(items.count()):
+                items.item(i).setCheckState(state)
+        select_all.clicked.connect(lambda:set_all(Qt.CheckState.Checked))
+        clear_all.clicked.connect(lambda:set_all(Qt.CheckState.Unchecked))
         buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(dlg.accept);buttons.rejected.connect(dlg.reject);layout.addWidget(buttons)
+        def accept_selection():
+            if not any(items.item(i).checkState()==Qt.CheckState.Checked for i in range(items.count())):
+                QMessageBox.warning(dlg,'Parameter kosong','Pilih minimal satu field Waybill sebelum melanjutkan.')
+                return
+            dlg.accept()
+        buttons.accepted.connect(accept_selection)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
         if dlg.exec()==QDialog.DialogCode.Accepted:
             self.waybill_fields={items.item(i).text() for i in range(items.count()) if items.item(i).checkState()==Qt.CheckState.Checked}
             self.waybill_btn.setText(f'Field Waybill: {len(self.waybill_fields)}')
@@ -223,12 +306,14 @@ class Window(QMainWindow):
                 self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
                 for i,(ref_loc,exam_loc) in enumerate(locations,1):
                     for loc,marks,pages,side in ((ref_loc,self.ref_marks,self.ref_pages,'ref'),(exam_loc,self.exam_marks,self.exam_pages,'exam')):
-                        if loc['text']:
-                            marks.append({'id':i,'page':loc['page'],'rect':loc['rect'],'side':side})
-                            pages[i]=loc['page']
+                        for hit in loc.get('hits',[]):
+                            marks.append({'id':i,'page':hit['page'],'rect':hit['rect'],'side':side,'kind':hit['kind']})
+                        if loc.get('hits'):
+                            pages[i]=loc['hits'][0]['page']
+                self.sort_differences()
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
-                self.sort_differences();self.populate()
-                self.status.setText(f'Waybill · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} berbeda · Field ditandai berdasarkan area template; verifikasi manual wajib.')
+                self.populate();self.show_step(3)
+                self.status.setText(f'Waybill · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
                 return
             self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
             parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
@@ -245,7 +330,7 @@ class Window(QMainWindow):
             refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
             rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
             self.ref_marks=rm;self.exam_marks=em;self.sort_differences()
-            self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate()
+            self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate();self.show_step(3)
             self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
         except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
     def sort_differences(self):
@@ -268,26 +353,61 @@ class Window(QMainWindow):
         self.exam_pages={remap[k]:v for k,v in self.exam_pages.items()}
 
     def populate(self,*args):
-        self.list.clear();self.visible=[]
-        for i,d in enumerate(self.diffs):
-            if self.filter.currentText() not in ('Semua',d.kind):continue
-            self.visible.append(i);label=(d.examined_text or d.reference_text).replace('\n',' ')[:95]
-            item=QListWidgetItem(f'#{i+1}  {d.kind}' + (f' · {d.field}' if getattr(d,'field','') else '') + f'\n{label}');item.setData(Qt.ItemDataRole.UserRole,i)
-            item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked if d.apply else Qt.CheckState.Unchecked);self.list.addItem(item)
+        """Group discrepancies by Waybill field; filter individual findings, not parents."""
+        self.list.blockSignals(True)
+        self.list.clear()
+        current_filter=self.filter.currentText()
+        self.visible=[]
+        if self.waybill_mode:
+            groups={}
+            for i,d in enumerate(self.diffs):
+                if current_filter == 'Perubahan' and d.kind not in ('Perubahan','Hilang','Berlebih'):continue
+                groups.setdefault(d.field or 'Lainnya',[]).append((i,d))
+            for field,entries in groups.items():
+                kinds={k:sum(d.kind==k for _,d in entries) for k in ('Perubahan','Hilang','Berlebih')}
+                summary=' · '.join(f'{count} {kind}' for kind,count in kinds.items() if count)
+                parent=QTreeWidgetItem([f'{field}  ({len(entries)} temuan)  ·  {summary}'])
+                parent.setFlags(parent.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+                self.list.addTopLevelItem(parent)
+                for i,d in entries:
+                    snippet=(d.examined_text or d.reference_text).replace('\n',' ')[:85]
+                    item=QTreeWidgetItem([f'#{i+1} · {d.kind}  —  {snippet}'])
+                    item.setData(0,Qt.ItemDataRole.UserRole,i)
+                    item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(0,Qt.CheckState.Checked if d.apply else Qt.CheckState.Unchecked)
+                    parent.addChild(item)
+                parent.setExpanded(True)
+        else:
+            for i,d in enumerate(self.diffs):
+                if current_filter == 'Perubahan' and d.kind not in ('Perubahan','Hilang','Berlebih'):continue
+                label=(d.examined_text or d.reference_text).replace('\n',' ')[:95]
+                item=QTreeWidgetItem([f'#{i+1} · {d.kind}  —  {label}'])
+                item.setData(0,Qt.ItemDataRole.UserRole,i)
+                item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(0,Qt.CheckState.Checked if d.apply else Qt.CheckState.Unchecked)
+                self.list.addTopLevelItem(item)
+        self.list.blockSignals(False)
         try:self.list.itemChanged.disconnect(self.changed)
         except (RuntimeError,TypeError):pass
         self.list.itemChanged.connect(self.changed)
-    def changed(self,item):
-        self.diffs[item.data(Qt.ItemDataRole.UserRole)].apply=item.checkState()==Qt.CheckState.Checked
+    def changed(self,item,column):
+        index=item.data(0,Qt.ItemDataRole.UserRole)
+        if index is None:return
+        self.diffs[index].apply=item.checkState(0)==Qt.CheckState.Checked
         if self.editor_text is not None:
             self.status.setText('Pilihan koreksi berubah. Editor sebelumnya tetap tersimpan; buka Editor untuk meninjaunya.')
-    def navigate(self,row):
-        if row<0 or row>=len(self.visible):return
-        i=self.visible[row];d=self.diffs[i];n=i+1
+    def navigate_tree(self,item,column):
+        index=item.data(0,Qt.ItemDataRole.UserRole)
+        if index is None:
+            item.setExpanded(not item.isExpanded());return
+        self.navigate(index)
+    def navigate(self,i):
+        if i<0 or i>=len(self.diffs):return
+        d=self.diffs[i];n=i+1
         if n in self.ref_pages:self.ref_view.goto(self.ref_pages[n])
         if n in self.exam_pages:self.exam_view.goto(self.exam_pages[n])
-        self.detail.setText(f'#{n} · {d.kind}\n\nRujukan: {d.reference_text[:240] or "(tidak ada)"}\n\nDiperiksa: {d.examined_text[:240] or "(hilang)"}\n\nCatatan: penanda halaman adalah perkiraan berbasis pencarian teks.')
+        self.detail.setText(f'#{n} · {d.kind}' + (f' · {d.field}' if getattr(d,'field','') else '') +
+            f'\n\nRujukan: {d.reference_text[:240] or "(tidak ada)"}\n\nDiperiksa: {d.examined_text[:240] or "(hilang)"}\n\nCatatan: posisi teks hasil ekstraksi PDF perlu diverifikasi manual.')
     def ensure(self):
         if self.waybill_mode and self.sender() in (self.apply_btn,self.pdf_btn):
             QMessageBox.warning(self,'Ekspor koreksi Waybill','Ekspor koreksi otomatis belum aman untuk PDF Waybill. Ekspor laporan JSON tersedia.');return False
