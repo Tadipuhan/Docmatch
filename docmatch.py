@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
+from waybill_rules import FIELDS, compare_waybills
 
 RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
 # Supersampling improves PDF readability without changing the displayed page dimensions.
@@ -122,7 +123,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__();self.setWindowTitle('DocMatch v0.6 — Manual Correction Editor (Offline)');self.resize(1550,920)
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
-        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[]
+        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
         header=QHBoxLayout();brand=QLabel('▣  DocMatch');brand.setStyleSheet(f'font-size:24px;font-weight:800;color:{RED}')
         header.addWidget(brand);header.addWidget(QLabel('Pembanding & Koreksi Dokumen  •  100% Offline'));header.addStretch();main.addLayout(header)
@@ -132,9 +133,11 @@ class Window(QMainWindow):
         for b in (self.ref_btn,self.exam_btn,self.run_btn):toolbar.addWidget(b)
         main.addLayout(toolbar)
         rules_bar=QHBoxLayout();rules_bar.addWidget(QLabel('Mode parameter:'))
-        self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual')
+        self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual');self.rule_mode.addItem('Waybill (preset field)','waybill')
         rules_bar.addWidget(self.rule_mode)
         self.scope_btn=QPushButton('Pilih Paragraf Rujukan…');self.scope_btn.clicked.connect(self.choose_scope);rules_bar.addWidget(self.scope_btn)
+        self.waybill_btn=QPushButton('Atur Field Waybill…');self.waybill_btn.clicked.connect(self.choose_waybill);rules_bar.addWidget(self.waybill_btn)
+        self.rule_mode.currentIndexChanged.connect(self.mode_changed);self.mode_changed()
         self.all_scope=QCheckBox('Periksa seluruh dokumen');rules_bar.addWidget(self.all_scope);rules_bar.addStretch();main.addLayout(rules_bar)
         split=QSplitter(Qt.Orientation.Horizontal);self.ref_view=Paper('DOKUMEN RUJUKAN');self.exam_view=Paper('DOKUMEN DIPERIKSA')
         split.addWidget(self.ref_view);split.addWidget(self.exam_view)
@@ -163,6 +166,26 @@ class Window(QMainWindow):
         p=Path(name)
         if side=='ref':self.ref_path=p;self.ref_btn.setText('Rujukan: '+p.name)
         else:self.exam_path=p;self.exam_btn.setText('Diperiksa: '+p.name)
+    def mode_changed(self,*args):
+        is_waybill=self.rule_mode.currentData()=='waybill'
+        self.scope_btn.setEnabled(not is_waybill)
+        self.waybill_btn.setEnabled(is_waybill)
+        self.all_scope.setEnabled(not is_waybill)
+
+    def choose_waybill(self):
+        dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
+        layout=QVBoxLayout(dlg);layout.addWidget(QLabel('Pilih field yang akan dibandingkan. Preset untuk layout ANL Waybill.'))
+        items=QListWidget();layout.addWidget(items)
+        for name,_ in FIELDS:
+            item=QListWidgetItem(name);item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields else Qt.CheckState.Unchecked)
+            items.addItem(item)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dlg.accept);buttons.rejected.connect(dlg.reject);layout.addWidget(buttons)
+        if dlg.exec()==QDialog.DialogCode.Accepted:
+            self.waybill_fields={items.item(i).text() for i in range(items.count()) if items.item(i).checkState()==Qt.CheckState.Checked}
+            self.waybill_btn.setText(f'Field Waybill: {len(self.waybill_fields)}')
+
     def choose_scope(self):
         if not self.ref_path:
             QMessageBox.warning(self,'Pilih rujukan','Pilih dokumen rujukan terlebih dahulu.');return
@@ -190,6 +213,23 @@ class Window(QMainWindow):
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
         if not self.ref_path or not self.exam_path:QMessageBox.warning(self,'Berkas belum lengkap','Pilih kedua dokumen.');return
         try:
+            self.waybill_mode=self.rule_mode.currentData()=='waybill'
+            if self.waybill_mode:
+                if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
+                a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
+                refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
+                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields)
+                self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
+                self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
+                for i,(ref_loc,exam_loc) in enumerate(locations,1):
+                    for loc,marks,pages,side in ((ref_loc,self.ref_marks,self.ref_pages,'ref'),(exam_loc,self.exam_marks,self.exam_pages,'exam')):
+                        if loc['text']:
+                            marks.append({'id':i,'page':loc['page'],'rect':loc['rect'],'side':side})
+                            pages[i]=loc['page']
+                self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
+                self.sort_differences();self.populate()
+                self.status.setText(f'Waybill · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} berbeda · Field ditandai berdasarkan area template; verifikasi manual wajib.')
+                return
             self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
             parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
             self.mode=self.rule_mode.currentData()
@@ -204,15 +244,35 @@ class Window(QMainWindow):
             a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
             refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
             rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
-            self.ref_view.load(refpdf,rm);self.exam_view.load(exampdf,em);self.populate()
+            self.ref_marks=rm;self.exam_marks=em;self.sort_differences()
+            self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate()
             self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
         except Exception as e:QMessageBox.critical(self,'Gagal',str(e))
+    def sort_differences(self):
+        # Sort by physical position of the examined document, falling back to reference.
+        # Keep difference indices, marker IDs and page maps consistent after sorting.
+        old=list(self.diffs)
+        def position(i):
+            marks=[m for m in self.exam_marks if m['id']==i+1]
+            if not marks:marks=[m for m in self.ref_marks if m['id']==i+1]
+            if marks:
+                m=marks[0];r=m['rect']
+                return (m['page'],round(r.y0/12),r.x0,r.y0,i)
+            return (10**7,10**7,10**7,10**7,i)
+        order=sorted(range(len(old)),key=position)
+        remap={old_i+1:new_i+1 for new_i,old_i in enumerate(order)}
+        self.diffs=[old[i] for i in order]
+        for marks in (self.ref_marks,self.exam_marks):
+            for m in marks:m['id']=remap[m['id']]
+        self.ref_pages={remap[k]:v for k,v in self.ref_pages.items()}
+        self.exam_pages={remap[k]:v for k,v in self.exam_pages.items()}
+
     def populate(self,*args):
         self.list.clear();self.visible=[]
         for i,d in enumerate(self.diffs):
             if self.filter.currentText() not in ('Semua',d.kind):continue
             self.visible.append(i);label=(d.examined_text or d.reference_text).replace('\n',' ')[:95]
-            item=QListWidgetItem(f'#{i+1}  {d.kind}\n{label}');item.setData(Qt.ItemDataRole.UserRole,i)
+            item=QListWidgetItem(f'#{i+1}  {d.kind}' + (f' · {d.field}' if getattr(d,'field','') else '') + f'\n{label}');item.setData(Qt.ItemDataRole.UserRole,i)
             item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked if d.apply else Qt.CheckState.Unchecked);self.list.addItem(item)
         try:self.list.itemChanged.disconnect(self.changed)
@@ -229,11 +289,15 @@ class Window(QMainWindow):
         if n in self.exam_pages:self.exam_view.goto(self.exam_pages[n])
         self.detail.setText(f'#{n} · {d.kind}\n\nRujukan: {d.reference_text[:240] or "(tidak ada)"}\n\nDiperiksa: {d.examined_text[:240] or "(hilang)"}\n\nCatatan: penanda halaman adalah perkiraan berbasis pencarian teks.')
     def ensure(self):
+        if self.waybill_mode and self.sender() in (self.apply_btn,self.pdf_btn):
+            QMessageBox.warning(self,'Ekspor koreksi Waybill','Ekspor koreksi otomatis belum aman untuk PDF Waybill. Ekspor laporan JSON tersedia.');return False
         if not self.diffs:QMessageBox.warning(self,'Belum dibandingkan','Jalankan perbandingan terlebih dahulu.');return False
         return True
     def open_editor(self):
         if not self.exam_path or not self.reference:
             QMessageBox.warning(self,'Belum siap','Pilih dokumen dan jalankan perbandingan terlebih dahulu.');return
+        if self.waybill_mode:
+            QMessageBox.information(self,'Mode Waybill','Editor dan koreksi otomatis PDF tidak tersedia pada mode Waybill. Gunakan hasil audit untuk koreksi manual pada dokumen sumber.');return
         source=corrected_blocks(self.examined,self.diffs)
         if self.editor_text is None:
             self.editor_initial=list(source)
@@ -268,7 +332,7 @@ class Window(QMainWindow):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Seleksi hanya mencakup blok teks; tabel dan header/footer tidak dicakup. Ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
+            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekstraksi berdasarkan koordinat template ANL, belum universal; koreksi PDF tidak otomatis. Mode umum: ekspor membangun ulang teks dan tidak menjaga layout asli.','differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')

@@ -11,11 +11,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from docx import Document
-<<<<<<< HEAD
 import pymupdf as fitz
-=======
-import fitz
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFileDialog, QPlainTextEdit, QTableWidget, QTableWidgetItem,
@@ -35,16 +31,15 @@ class Difference:
 
 
 def libreoffice_convert(path: Path, ext: str, outdir: Path) -> Path:
-<<<<<<< HEAD
-    from portable_runtime import find_soffice
-    executable = find_soffice()
+    try:
+        from portable_runtime import find_soffice
+    except ImportError:
+        find_soffice = None
+    executable = find_soffice() if find_soffice is not None else None
     if not executable:
-        raise RuntimeError('Mesin konversi LibreOffice tidak ditemukan. Gunakan paket Portable lengkap atau atur DOCMATCH_SOFFICE.')
-=======
-    executable = shutil.which('libreoffice') or shutil.which('soffice')
+        executable = shutil.which('libreoffice') or shutil.which('soffice')
     if not executable:
-        raise RuntimeError('LibreOffice tidak ditemukan. Instal LibreOffice untuk DOC dan konversi PDF.')
->>>>>>> b90d4f99a63478e94eb94ec982b6be3863b64ffb
+        raise RuntimeError('LibreOffice tidak ditemukan. Gunakan runtime portable atau atur lokasi LibreOffice.')
     profile = (outdir / 'lo_profile').as_uri()
     command = [executable, f'-env:UserInstallation={profile}', '--headless', '--convert-to', ext,
                '--outdir', str(outdir), str(path)]
