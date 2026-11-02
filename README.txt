@@ -1,15 +1,8 @@
-DocMatch v1.4 — Integrasi Logo dan Ikon Resmi
+DocMatch v1.4 - Pembaruan Logo DM
 
-Isi: docmatch.py, assets/docmatch.ico, assets/docmatch_128.png, assets/docmatch_logo.png
+Logo berasal dari file DocMatch DM Logo.png yang Anda kirim.
+Ganti docmatch.py dan folder assets pada proyek. Kode aplikasi dan fitur tidak diubah.
+Jalankan: py docmatch.py
 
-Pemasangan source:
-1. Backup docmatch.py lama.
-2. Salin docmatch.py dan folder assets/ ke folder utama proyek.
-3. Jangan hapus legacy_v01.py, rules.py, editor.py, waybill_rules.py.
-4. Jalankan: py docmatch.py
-
-PyInstaller (jalankan dari folder proyek):
-pyinstaller --noconfirm --windowed --name DocMatch --icon assets/docmatch.ico --add-data "assets;assets" docmatch.py
-
-Perubahan: ikon aplikasi, titlebar/taskbar, logo kecil pada header. Fitur perbandingan tidak diubah.
-Catatan: build Windows belum diuji di lingkungan Windows; bila memakai .exe, rebuild diperlukan.
+Untuk EXE, build ulang dengan PyInstaller --icon assets/docmatch.ico dan sertakan folder assets melalui --add-data "assets;assets" pada Windows.
+Perhatian: ikon EXE lama mungkin masih tersimpan di cache Windows.
