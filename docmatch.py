@@ -192,7 +192,7 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.4 — Step Wizard (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.5 — Step Wizard (Offline)');self.resize(1100,740)
         icon_file=asset_path('docmatch.ico')
         if icon_file.is_file(): self.setWindowIcon(QIcon(str(icon_file)))
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
@@ -226,7 +226,7 @@ class Window(QMainWindow):
         # Step 2: comparison scope
         step2=QWidget();rules_bar=QHBoxLayout(step2);rules_bar.setContentsMargins(2,7,2,7)
         rules_bar.addWidget(QLabel('Mode parameter:'))
-        self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual');self.rule_mode.addItem('Waybill (preset field)','waybill')
+        self.rule_mode=QComboBox();self.rule_mode.addItem('Gabungkan tag + pilihan aplikasi','hybrid');self.rule_mode.addItem('Tag dokumen saja','embedded');self.rule_mode.addItem('Pilihan aplikasi saja','visual');self.rule_mode.addItem('SWB - ANL/CNC/CMA CGM','waybill_anl');self.rule_mode.addItem('SWB - EVERGREEN','waybill_evergreen');self.rule_mode.addItem('SWB - Golden Star Line','waybill_gsl')
         rules_bar.addWidget(self.rule_mode,1)
         self.scope_btn=QPushButton('Pilih Paragraf Rujukan…');self.scope_btn.clicked.connect(self.choose_scope);rules_bar.addWidget(self.scope_btn)
         self.waybill_btn=QPushButton('Atur Field Waybill…');self.waybill_btn.clicked.connect(self.choose_waybill);rules_bar.addWidget(self.waybill_btn)
@@ -307,7 +307,7 @@ class Window(QMainWindow):
         if side=='ref':self.ref_path=p;self.ref_btn.setText('Rujukan: '+p.name)
         else:self.exam_path=p;self.exam_btn.setText('Diperiksa: '+p.name)
     def mode_changed(self,*args):
-        is_waybill=self.rule_mode.currentData()=='waybill'
+        is_waybill=str(self.rule_mode.currentData()).startswith('waybill')
         self.scope_btn.setEnabled(not is_waybill)
         self.waybill_btn.setEnabled(is_waybill)
         self.all_scope.setEnabled(not is_waybill)
@@ -315,7 +315,7 @@ class Window(QMainWindow):
     def choose_waybill(self):
         dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
         layout=QVBoxLayout(dlg)
-        layout.addWidget(QLabel('Pilih field yang akan dibandingkan. Preset untuk layout ANL Waybill.'))
+        layout.addWidget(QLabel('Pilih field SWB yang diperiksa. Area ekstraksi mengikuti preset pelayaran.'))
         items=QListWidget()
         for name,_ in FIELDS:
             item=QListWidgetItem(name)
@@ -373,12 +373,12 @@ class Window(QMainWindow):
         self.editor_text=None;self.editor_initial=None;self.editor_source=None;self.note_overrides={}
         if not self.ref_path or not self.exam_path:QMessageBox.warning(self,'Berkas belum lengkap','Pilih kedua dokumen.');return
         try:
-            self.waybill_mode=self.rule_mode.currentData()=='waybill'
+            self.waybill_mode=str(self.rule_mode.currentData()).startswith('waybill')
             if self.waybill_mode:
                 if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
                 a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
                 refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
-                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields)
+                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields,profile=self.rule_mode.currentData())
                 self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
                 self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
                 for i,(ref_loc,exam_loc) in enumerate(locations,1):
@@ -390,7 +390,7 @@ class Window(QMainWindow):
                 self.sort_differences()
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
                 self.populate();self.show_step(3)
-                self.status.setText(f'Waybill · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
+                self.status.setText(f'{self.rule_mode.currentText()} · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
                 return
             self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
             parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
@@ -1111,7 +1111,7 @@ class Window(QMainWindow):
         if not self.ensure():return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','differences':[
+            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_preset':self.rule_mode.currentData() if self.waybill_mode else None,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
