@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
-from waybill_rules import FIELDS, compare_waybills
+from waybill_rules import FIELDS, compare_waybills, profile_field_names
 
 def asset_path(name: str) -> Path:
     """Resolve branding assets in source and PyInstaller builds."""
@@ -317,10 +317,10 @@ class Window(QMainWindow):
         layout=QVBoxLayout(dlg)
         layout.addWidget(QLabel('Pilih field SWB yang diperiksa. Area ekstraksi mengikuti preset pelayaran.'))
         items=QListWidget()
-        for name,_ in FIELDS:
+        for name in profile_field_names(self.rule_mode.currentData()):
             item=QListWidgetItem(name)
             item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields else Qt.CheckState.Unchecked)
+            item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields or name not in {n for n,_ in FIELDS} else Qt.CheckState.Unchecked)
             items.addItem(item)
         controls=QHBoxLayout()
         select_all=QPushButton('Pilih Semua')
@@ -378,7 +378,7 @@ class Window(QMainWindow):
                 if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
                 a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
                 refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
-                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields,profile=self.rule_mode.currentData())
+                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields & set(profile_field_names(self.rule_mode.currentData())),profile=self.rule_mode.currentData())
                 self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
                 self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
                 for i,(ref_loc,exam_loc) in enumerate(locations,1):

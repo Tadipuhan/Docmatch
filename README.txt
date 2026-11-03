@@ -1,22 +1,18 @@
-DocMatch v1.5 — SWB carrier presets (offline)
+DocMatch v1.6 — Field SWB per kotak
 
-INSTALL
-1. Backup existing docmatch.py and waybill_rules.py.
-2. Copy docmatch.py and waybill_rules.py to your project root; keep existing legacy_v01.py, rules.py, editor.py.
-3. Copy assets/ to your project root (preserves the latest DM branding).
-4. Run: py docmatch.py
+Perubahan:
+- SWB - EVERGREEN: 20 field termasuk Pre-Carriage, Place of Receipt,
+  Document Number, Export References, Freight & Charges, Place of Delivery,
+  dan Attached List (halaman 2). Vessel dan Voyage Number dipisahkan.
+- SWB - Golden Star Line: 15 field termasuk Booking Number dan Attached List
+  (halaman 3 PDF sampel; halaman 2 kosong). Pemetaan area visual diperbaiki.
+- Dialog Field Waybill kini mengikuti preset yang dipilih, bukan 13 field ANL.
+- SWB ANL/CNC/CMA CGM tidak diubah.
+- OCR tidak digunakan. PDF GSL sampel memiliki font encoding rusak dan
+  pemeriksaan otomatis tetap dihentikan untuk mencegah temuan palsu.
 
-CHANGES
-- Waybill renamed to SWB - ANL/CNC/CMA CGM (same ANL extraction coordinates).
-- Added SWB - EVERGREEN with template-specific regions, based on supplied EVG PDF.
-- Added SWB - Golden Star Line with template-specific regions and a text-encoding safety check.
-- JSON reports record waybill_preset.
+Pemasangan: backup docmatch.py dan waybill_rules.py, lalu ganti kedua file
+beserta folder assets. Jalankan py docmatch.py. Jika memakai EXE, build ulang.
 
-IMPORTANT LIMITATIONS
-- Evergreen regions are initial calibration from one sample, not production-validated.
-- GSL supplied PDF has unreadable font encoding in PyMuPDF. The app deliberately blocks comparisons on such files rather than fabricate differences. OCR was NOT added.
-- For each comparison, both files must have the same carrier layout.
-- Field extraction is still coordinate-based; labels/overlaps and multi-page cargo need additional calibration with paired reference/examined examples.
-- Existing export/editor features remain in the source but were not GUI-tested on Windows.
-
-VALIDATION: Python syntax, Evergreen self-comparison, GSL encoding guard.
+Catatan: koordinat dikalibrasi dari SATU contoh per carrier. Perlu uji dengan
+pasangan SWB yang berbeda dan template revisi sebelum dipakai operasional.

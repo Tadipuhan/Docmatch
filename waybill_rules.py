@@ -75,85 +75,109 @@ def compare_waybills(reference_pdf, examined_pdf, selected=None):
             locations.append(({'hits':_hits(a,i1,i2,kind)}, {'hits':_hits(b,j1,j2,kind)}))
     return differences,locations
 
-# Carrier-specific coordinate templates (relative to the PDF page). The ANL
-# template is kept untouched for backwards compatibility.
-EVERGREEN_FIELDS = {
- 'Shipper':(.02,.085,.54,.155), 'Consignee':(.02,.155,.56,.245),
- 'Notify Party':(.02,.245,.56,.34), 'Voyage Number':(.02,.34,.32,.395),
- 'Waybill Number':(.54,.07,.995,.115), 'Vessel':(.02,.34,.32,.395),
- 'Port of Loading':(.31,.34,.56,.405), 'Port of Discharge':(.02,.395,.32,.445),
- 'Container & Seal':(.02,.445,.34,.69), 'Cargo Description':(.34,.445,.79,.77),
- 'Weight & Measurement':(.78,.435,.995,.60),
- 'Place & Date of Issue':(.23,.86,.62,.95), 'Additional Clauses':(.02,.69,.995,.97),
+# Page-specific, non-overlapping cells calibrated against the supplied SWB samples.
+# Each entry: (page index, x0, y0, x1, y1) in normalized page coordinates.
+# This is a fixed-layout preset, not OCR or universal form recognition.
+EVERGREEN_CELLS = {
+ 'Shipper':[(0,.025,.084,.55,.157)],
+ 'Consignee':[(0,.025,.165,.55,.241)],
+ 'Notify Party':[(0,.025,.241,.55,.319)],
+ 'Document Number':[(0,.555,.082,.98,.112)],
+ 'Export References':[(0,.555,.112,.98,.148)],
+ 'Pre-Carriage':[(0,.025,.339,.305,.365)],
+ 'Place of Receipt':[(0,.307,.339,.55,.365)],
+ 'Vessel':[(0,.025,.367,.16,.392)],
+ 'Voyage Number':[(0,.162,.367,.305,.392)],
+ 'Port of Loading':[(0,.307,.367,.55,.392)],
+ 'Port of Discharge':[(0,.025,.394,.305,.42)],
+ 'Place of Delivery':[(0,.307,.394,.55,.42)],
+ 'Container & Seal':[(0,.025,.47,.35,.615)],
+ 'Cargo Description':[(0,.35,.47,.78,.612)],
+ 'Attached List':[(1,.025,.065,.98,.72)],
+ 'Weight & Measurement':[(0,.78,.435,.98,.48)],
+ 'Freight & Charges':[(0,.025,.69,.78,.80)],
+ 'Waybill Number':[(0,.025,.839,.235,.871)],
+ 'Place & Date of Issue':[(0,.235,.865,.50,.892)],
+ 'Additional Clauses':[(0,.78,.612,.98,.705),(1,.025,.72,.98,.96)],
 }
-GSL_FIELDS = {
- 'Shipper':(.055,.075,.53,.145), 'Consignee':(.055,.145,.53,.24),
- 'Notify Party':(.055,.245,.53,.34), 'Voyage Number':(.29,.34,.54,.41),
- 'Waybill Number':(.53,.07,.995,.14), 'Vessel':(.055,.34,.36,.41),
- 'Port of Loading':(.30,.34,.54,.44), 'Port of Discharge':(.055,.41,.36,.48),
- 'Container & Seal':(.055,.46,.33,.72), 'Cargo Description':(.32,.46,.80,.72),
- 'Weight & Measurement':(.77,.46,.995,.74),
- 'Place & Date of Issue':(.56,.83,.995,.94), 'Additional Clauses':(.055,.70,.995,.97),
+# The GSL sample's embedded text is corrupt; these cells describe its visual
+# layout only. Extraction remains blocked until a readable text-layer PDF is used.
+GSL_CELLS = {
+ 'Shipper':[(0,.07,.073,.54,.144)],
+ 'Consignee':[(0,.07,.146,.54,.233)],
+ 'Notify Party':[(0,.07,.237,.54,.341)],
+ 'Booking Number':[(0,.54,.073,.77,.105)],
+ 'Waybill Number':[(0,.77,.073,.98,.105)],
+ 'Vessel':[(0,.07,.347,.29,.383)],
+ 'Voyage Number':[(0,.29,.347,.54,.383)],
+ 'Port of Loading':[(0,.29,.383,.54,.421)],
+ 'Port of Discharge':[(0,.07,.383,.29,.421)],
+ 'Cargo Description':[(0,.30,.434,.76,.67)],
+ 'Attached List':[(2,.07,.065,.98,.79)],
+ 'Container & Seal':[(0,.07,.434,.30,.67)],
+ 'Weight & Measurement':[(0,.76,.434,.98,.69)],
+ 'Place & Date of Issue':[(0,.65,.855,.98,.928)],
+ 'Additional Clauses':[(0,.07,.70,.65,.94),(2,.07,.79,.98,.97)],
 }
 
-# Override the old extract/compare with profile-aware equivalents while
-# preserving the original public signatures and difference structure.
+def profile_field_names(profile='waybill_anl'):
+    if profile=='waybill_evergreen':return list(EVERGREEN_CELLS)
+    if profile=='waybill_gsl':return list(GSL_CELLS)
+    return [name for name,_ in FIELDS]
 
-def _profile_regions(profile):
-    if profile in ('waybill','waybill_anl',None): return dict(FIELDS)
-    if profile=='waybill_evergreen': return EVERGREEN_FIELDS
-    if profile=='waybill_gsl': return GSL_FIELDS
+def _profile_cells(profile):
+    if profile in ('waybill','waybill_anl',None):
+        return {name:[(0,*bounds)] for name,bounds in FIELDS}
+    if profile=='waybill_evergreen':return EVERGREEN_CELLS
+    if profile=='waybill_gsl':return GSL_CELLS
     raise ValueError('Preset SWB tidak dikenal: '+str(profile))
 
 def _readable_ratio(words):
-    tokens=[w['word'] for w in words]
-    if not tokens:return 0.0
-    # Reject garbled character maps: punctuation-only or mostly nonletters.
-    good=sum(bool(re.search(r'[A-Za-z]{2,}|\d{3,}',t)) for t in tokens)
-    return good/len(tokens)
+    if not words:return 0.0
+    return sum(bool(re.search(r'[A-Za-z]{2,}|\d{3,}',w['word'])) for w in words)/len(words)
 
-def extract(path, chosen=None, profile='waybill_anl'):
-    regions=_profile_regions(profile)
-    chosen=set(chosen) if chosen is not None else set(regions)
+_extract_anl=extract
+
+def extract(path,chosen=None,profile='waybill_anl'):
+    if profile in ('waybill','waybill_anl',None):
+        return _extract_anl(path,chosen)
+    cells=_profile_cells(profile)
+    chosen=set(chosen) if chosen is not None else set(cells)
     result={}
     with fitz.open(path) as doc:
-        if not len(doc): raise ValueError('PDF kosong')
+        if not doc:raise ValueError('PDF kosong')
         if profile=='waybill_gsl':
             allwords=[{'word':str(w[4])} for p in doc for w in p.get_text('words')]
             if _readable_ratio(allwords)<.35:
-                raise ValueError('PDF Golden Star Line menggunakan encoding font yang tidak terbaca. '
-                                 'Perbandingan dihentikan untuk mencegah temuan palsu. '
-                                 'Gunakan PDF dengan lapisan teks Unicode yang valid; OCR belum didukung.')
-        for name,bounds in regions.items():
+                raise ValueError('PDF Golden Star Line memiliki encoding font yang tidak terbaca. '
+                                 'Perbandingan dihentikan untuk mencegah hasil palsu. '
+                                 'Gunakan PDF dengan teks Unicode valid; OCR belum didukung.')
+        for name,regions in cells.items():
             if name not in chosen:continue
             words=[]
-            # Supplementary sheets are compared as clauses/cargo, not as the
-            # first-page fields; no arbitrary content is attributed to Shipper.
-            pages=range(len(doc)) if name=='Additional Clauses' else [0]
-            for page_no in pages:
+            for page_no,*bounds in regions:
+                if page_no>=len(doc):continue
                 page=doc[page_no]
-                region=_rect(page,bounds if page_no==0 else (.02,.07,.99,.97))
-                for w in page.get_text('words',clip=region,sort=True):
+                for w in page.get_text('words',clip=_rect(page,bounds),sort=True):
                     token=str(w[4]).strip()
-                    if token: words.append({'word':token,'rect':fitz.Rect(w[:4]),'page':page_no})
+                    if token:words.append({'word':token,'rect':fitz.Rect(w[:4]),'page':page_no})
             result[name]={'text':' '.join(w['word'] for w in words),'words':words}
     return result
 
-def compare_waybills(reference_pdf, examined_pdf, selected=None, profile='waybill_anl'):
-    regions=_profile_regions(profile)
-    selected=set(selected) if selected is not None else set(regions)
-    ref=extract(reference_pdf,selected,profile); exam=extract(examined_pdf,selected,profile)
+def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_anl'):
+    cells=_profile_cells(profile)
+    selected=set(selected) if selected is not None else set(cells)
+    ref=extract(reference_pdf,selected,profile)
+    exam=extract(examined_pdf,selected,profile)
     differences=[];locations=[]
-    for name in regions:
+    for name in cells:
         if name not in selected:continue
         a=ref[name]['words'];b=exam[name]['words']
         matcher=SequenceMatcher(None,[_norm(w['word']) for w in a],[_norm(w['word']) for w in b],autojunk=False)
         for op,i1,i2,j1,j2 in matcher.get_opcodes():
             if op=='equal':continue
             kind={'replace':'Perubahan','delete':'Hilang','insert':'Berlebih'}[op]
-            differences.append(WaybillDifference(kind,None,None,
-                ' '.join(w['word'] for w in a[i1:i2]),
-                ' '.join(w['word'] for w in b[j1:j2]),
-                'Field Waybill: '+name+'; '+kind,False,name))
+            differences.append(WaybillDifference(kind,None,None,' '.join(w['word'] for w in a[i1:i2]),
+                ' '.join(w['word'] for w in b[j1:j2]),'Field Waybill: '+name+'; '+kind,False,name))
             locations.append(({'hits':_hits(a,i1,i2,kind)}, {'hits':_hits(b,j1,j2,kind)}))
     return differences,locations
