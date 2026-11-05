@@ -7,11 +7,32 @@ import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush, QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem,QSplashScreen)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
 from waybill_rules import FIELDS, compare_waybills, profile_field_names
+
+def set_windows_app_id() -> None:
+    """Keep the DocMatch icon on the Windows taskbar instead of a Python icon."""
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('DocMatch.Desktop.Portable.1')
+        except (AttributeError, OSError):
+            pass
+
+
+def app_icon() -> QIcon:
+    """Load the bundled ICO, falling back to PNG for non-Windows platforms."""
+    for name in ('docmatch.ico', 'docmatch_128.png', 'docmatch_logo.png'):
+        candidate = asset_path(name)
+        if candidate.is_file():
+            icon = QIcon(str(candidate))
+            if not icon.isNull():
+                return icon
+    return QIcon()
+
 
 def asset_path(name: str) -> Path:
     """Resolve branding assets in source and PyInstaller builds."""
@@ -193,8 +214,7 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 class Window(QMainWindow):
     def __init__(self):
         super().__init__();self.setWindowTitle('DocMatch v1.5 — Step Wizard (Offline)');self.resize(1100,740)
-        icon_file=asset_path('docmatch.ico')
-        if icon_file.is_file(): self.setWindowIcon(QIcon(str(icon_file)))
+        self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(14,12,14,12)
@@ -1118,8 +1138,21 @@ class Window(QMainWindow):
             QMessageBox.information(self,'Selesai','Laporan disimpan.')
 
 if __name__=='__main__':
+    set_windows_app_id()
     app=QApplication(sys.argv)
     app.setApplicationName('DocMatch')
-    icon_file=asset_path('docmatch.ico')
-    if icon_file.is_file(): app.setWindowIcon(QIcon(str(icon_file)))
-    w=Window();w.show();sys.exit(app.exec())
+    app.setOrganizationName('DocMatch')
+    app.setWindowIcon(app_icon())
+    splash = None
+    logo_file = asset_path('docmatch_logo.png')
+    if logo_file.is_file():
+        splash_pixmap = QPixmap(str(logo_file))
+        if not splash_pixmap.isNull():
+            splash = QSplashScreen(splash_pixmap.scaled(280, 280, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            splash.show()
+            app.processEvents()
+    w=Window()
+    w.show()
+    if splash is not None:
+        splash.finish(w)
+    sys.exit(app.exec())
