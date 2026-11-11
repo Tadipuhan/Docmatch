@@ -1,0 +1,72 @@
+Saya sudah menemukan kesalahan pada perintah PowerShell yang Anda jalankan. Masalahnya bukan berarti Tesseract gagal diinstal, tetapi Anda memanggil folder instalasi, bukan file `tesseract.exe`.
+
+Pada screenshot, Anda menjalankan:
+
+```
+& "C:\Users\tata.dico\AppData\Local\Tesseract-OCR" --version
+```
+
+Padahal PowerShell membutuhkan lokasi lengkap file executable.
+
+## 1. Coba perintah yang benar
+
+Karena lokasi instalasi Tesseract Anda adalah:
+
+`C:\Users\tata.dico\AppData\Local\Tesseract-OCR`
+
+Jalankan perintah berikut.
+
+Periksa versi Tesseract:
+
+```
+& "C:\Users\tata.dico\AppData\Local\Tesseract-OCR\tesseract.exe" --version
+```
+
+&#x20;Salin
+
+Periksa bahasa OCR yang tersedia:
+
+```
+& "C:\Users\tata.dico\AppData\Local\Tesseract-OCR\tesseract.exe" --list-langs
+```
+
+&#x20;Salin
+
+Jika instalasinya benar, perintah pertama akan menampilkan versi Tesseract dan perintah kedua akan menampilkan daftar bahasa. Pastikan terdapat `eng`.
+
+## 2. Jika masih error, periksa apakah file EXE tersedia
+
+Jalankan:
+
+```
+Test-Path "C:\Users\tata.dico\AppData\Local\Tesseract-OCR\tesseract.exe"
+```
+
+Hasilnya:
+
+- `True` — file executable ditemukan.
+- `False` — file tidak ditemukan di lokasi tersebut. Kita perlu mencari lokasi instalasi sebenarnya.
+
+Untuk memeriksa isi folder:
+
+```
+Get-ChildItem "C:\Users\tata.dico\AppData\Local\Tesseract-OCR"
+```
+
+## 3. Hubungkan Tesseract dengan DocMatch
+
+Setelah kedua perintah berhasil, kita perlu memastikan DocMatch dapat menemukan mesin OCR.
+
+Untuk pengujian sementara, Anda dapat menambahkan lokasi Tesseract ke PATH pada sesi PowerShell:
+
+```
+$env:PATH = "C:\Users\tata.dico\AppData\Local\Tesseract-OCR;$env:PATH"
+```
+
+Kemudian jalankan DocMatch dari sesi PowerShell yang sama. Ini hanya membantu jika kode DocMatch memang mendukung pencarian Tesseract melalui PATH.
+
+Untuk DocMatch Portable, solusi akhirnya tetap harus menyertakan Tesseract di paket aplikasi sehingga komputer lain tidak perlu menginstalnya.
+
+Sekarang coba dua perintah pada bagian pertama, lalu kirim screenshot hasil `--version` dan `--list-langs`.
+
+Jika keduanya berhasil, kita bisa lanjut memperbaiki konfigurasi DocMatch v1.8.1 agar membaca Tesseract dari lokasi instalasi Anda dan nantinya mengemasnya menjadi aplikasi portable sepenuhnya.

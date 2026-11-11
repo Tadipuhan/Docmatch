@@ -12,6 +12,7 @@ from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreo
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
 from waybill_rules import FIELDS, compare_waybills, profile_field_names
+import waybill_rules as swb_rules
 
 def set_windows_app_id() -> None:
     """Keep the DocMatch icon on the Windows taskbar instead of a Python icon."""
@@ -213,7 +214,7 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.5 — Step Wizard (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.8.6 — Step Wizard (Offline)');self.resize(1100,740)
         self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False
@@ -335,7 +336,7 @@ class Window(QMainWindow):
     def choose_waybill(self):
         dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
         layout=QVBoxLayout(dlg)
-        layout.addWidget(QLabel('Pilih field SWB yang diperiksa. Area ekstraksi mengikuti preset pelayaran.'))
+        layout.addWidget(QLabel('Pilih kotak/field SWB yang diperiksa. Untuk GSL, kotak halaman utama dan Attached List dipisahkan.'))
         items=QListWidget()
         for name in profile_field_names(self.rule_mode.currentData()):
             item=QListWidgetItem(name)
@@ -398,6 +399,16 @@ class Window(QMainWindow):
                 if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
                 a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
                 refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
+                if self.rule_mode.currentData() == 'waybill_gsl':
+                    from gsl_ocr import ocr_status
+                    ready, reason = ocr_status()
+                    if not ready:
+                        QMessageBox.critical(self, 'OCR GSL tidak tersedia',
+                            'Pemeriksaan GSL tidak dijalankan karena OCR offline belum siap.\n\n'
+                            + reason + '\n\nPastikan tesseract.exe dan tessdata/eng.traineddata berada di paket portable. '
+                            'Periksa tombol Diagnostik OCR pada langkah Atur Parameter.')
+                        self.status.setText('GSL: OCR TIDAK TERSEDIA — pemeriksaan dibatalkan, bukan 0 temuan')
+                        return
                 self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields & set(profile_field_names(self.rule_mode.currentData())),profile=self.rule_mode.currentData())
                 self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
                 self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
@@ -411,6 +422,19 @@ class Window(QMainWindow):
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
                 self.populate();self.show_step(3)
                 self.status.setText(f'{self.rule_mode.currentText()} · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
+                if self.rule_mode.currentData()=='waybill_gsl':
+                    from gsl_ocr import ocr_status
+                    ocr_ready, ocr_message = ocr_status()
+                    self.status.setText(self.status.text() + (' · Full OCR GSL aktif' if ocr_ready else ' · OCR OFFLINE TIDAK TERSEDIA'))
+                    self.status.setToolTip(ocr_message)
+                if self.rule_mode.currentData()=='waybill_gsl' and swb_rules.GSL_SKIPPED_FIELDS:
+                    self.status.setToolTip('Field GSL belum tervalidasi: ' + ', '.join(swb_rules.GSL_SKIPPED_FIELDS) + '. Full OCR GSL digunakan untuk semua field; periksa hasil OCR sebelum menyetujui koreksi.')
+                    self.status.setText(self.status.text() + f' · {len(swb_rules.GSL_SKIPPED_FIELDS)} field belum tervalidasi (OCR)')
+                if self.rule_mode.currentData()=='waybill_gsl':
+                    import json
+                    diag_path=self.work/'gsl_ocr_diagnostik.json'
+                    diag_path.write_text(json.dumps({'ocr_status': ocr_message, 'field': swb_rules.GSL_DIAGNOSTICS, 'belum_tervalidasi': swb_rules.GSL_SKIPPED_FIELDS},ensure_ascii=False,indent=2),encoding='utf-8')
+                    self.status.setToolTip('Diagnostik OCR disimpan: '+str(diag_path))
                 return
             self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
             parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
@@ -688,8 +712,7 @@ class Window(QMainWindow):
         close_btn = QPushButton('Tutup')
         for btn in (save_btn, export_btn, close_btn): footer.addWidget(btn)
         root.addLayout(footer)
-        working = {i + 1: self.note_overrides.get(i + 1, self.default_correction_note(i + 1))
-                   for i, d in enumerate(self.diffs)}
+        working = dict(self.note_overrides)
         # Only selected findings with actual PDF positions can be drawn.
         marks_by_page = {}
         for m in self.exam_marks:
@@ -741,16 +764,17 @@ class Window(QMainWindow):
                     drawing.get('fill') is not None):
                     note_rects.append(rect)
             note_rects.sort(key=lambda r: (r.y0, r.x0))
-            groups = marks_by_page.get(page_no, {})
-            numbers = sorted(groups, key=lambda n: min(r.y0 for r in groups[n]))
-            if len(note_rects) != len(numbers):
+            page_groups = [g for g in self.grouped_correction_notes() if g['page'] == page_no]
+            keys = [g['key'] for g in page_groups]
+            if len(note_rects) != len(keys):
                 # Never silently connect an editor to the wrong correction.
                 raise ValueError('Tidak dapat mencocokkan kotak catatan dengan temuan. '
                                  'Gunakan editor daftar untuk dokumen ini.')
-            for number, rect in zip(numbers, note_rects):
+            for group, rect in zip(page_groups, note_rects):
+                key = group['key']
                 editor = QPlainTextEdit(canvas)
-                editor.setPlainText(working[number])
-                editor.setToolTip(f'Catatan #{number:02d} — ketik untuk mengubah')
+                editor.setPlainText(working.get(key, group['text']))
+                editor.setToolTip(f'Catatan {group["field"]} — ketik untuk mengubah')
                 editor.setStyleSheet('QPlainTextEdit { background: #FFF9F6; color: #850D1C; '
                                      'border: 1px solid #BD8A91; font: italic 12px Arial; '
                                      'padding: 3px; } QPlainTextEdit:focus { border: 2px solid #850D1C; }')
@@ -760,8 +784,8 @@ class Window(QMainWindow):
                 h = max(26, round((rect.height - 20) * zoom))
                 editor.setGeometry(x, y, w, h)
                 editor.show()
-                state['editors'].append((number, editor))
-            page_label.setText(f'Halaman {page_no+1} / {len(pdf)} · {len(numbers)} catatan dapat diedit')
+                state['editors'].append((key, editor))
+            page_label.setText(f'Halaman {page_no+1} / {len(pdf)} · {len(keys)} kotak field dapat diedit')
             prev.setEnabled(page_no > 0)
             next_btn.setEnabled(page_no + 1 < len(pdf))
         def navigate(delta):
@@ -909,35 +933,149 @@ class Window(QMainWindow):
         if self.diffs: findings.setCurrentRow(0)
         dialog.exec()
 
-    def export_waybill_notes_pdf(self, target):
-        """Non-destructive, vector-preserving PDF with right-margin correction notes.
+    @staticmethod
+    def _gsl_field_lines(words):
+        """Rebuild full reference content from OCR word positions, not diff snippets."""
+        if not words:
+            return ''
+        ordered = sorted(words, key=lambda w: (int(w.get('page', 0)), float(w['rect'].y0), float(w['rect'].x0)))
+        lines = []
+        for w in ordered:
+            r = fitz.Rect(w['rect'])
+            if not lines or w.get('page', 0) != lines[-1]['page'] or abs(r.y0 - lines[-1]['y']) > max(3.5, min(9, r.height * .65)):
+                lines.append({'page': w.get('page', 0), 'y': r.y0, 'words': [w]})
+            else:
+                lines[-1]['words'].append(w)
+        return '\n'.join(' '.join(str(w['word']) for w in sorted(line['words'], key=lambda v: v['rect'].x0)) for line in lines).strip()
 
-        Only explicitly checked findings are annotated. The source PDF is never modified.
-        Each note is linked to its original highlighted rectangle. A note that cannot
-        be placed safely fails the export rather than obscuring document content.
-        """
+    @staticmethod
+    def _gsl_change_explanation(reference, examined):
+        """Describe verifiable token changes; avoid guessing semantic categories."""
+        def tokens(t):
+            return re.findall(r'\S+', t)
+        a, b = tokens(examined), tokens(reference)
+        matcher = difflib.SequenceMatcher(None, [x.casefold() for x in a], [x.casefold() for x in b], autojunk=False)
+        changes = []
+        for op, i, j, k, l in matcher.get_opcodes():
+            if op == 'equal':
+                continue
+            old, new = ' '.join(a[i:j]), ' '.join(b[k:l])
+            if op == 'replace':
+                changes.append(f'Ganti "{old}" menjadi "{new}"')
+            elif op == 'delete':
+                changes.append(f'Hapus "{old}"')
+            else:
+                changes.append(f'Tambahkan "{new}"')
+        if not changes:
+            return 'Tidak ada perbedaan teks yang terkonfirmasi setelah normalisasi OCR.'
+        if len(changes) > 8:
+            return '; '.join(changes[:8]) + f'; dan {len(changes)-8} perubahan lainnya.'
+        return '; '.join(changes) + '.'
+
+    def grouped_correction_notes(self):
+        """One note per PDF page and field, with full GSL reference and change details."""
+        approved = {i + 1: d for i, d in enumerate(self.diffs) if d.apply}
+        grouped = {}
+        for mark in self.exam_marks:
+            n = mark.get('id')
+            if n not in approved:
+                continue
+            d = approved[n]
+            field = (getattr(d, 'field', '') or 'Lainnya').strip()
+            key = (mark['page'], field.casefold())
+            item = grouped.setdefault(key, {'page': mark['page'], 'field': field,
+                                            'numbers': [], 'rectangles': []})
+            if n not in item['numbers']:
+                item['numbers'].append(n)
+            item['rectangles'].append(fitz.Rect(mark['rect']))
+        result = []
+        for item in grouped.values():
+            item['numbers'].sort()
+            group_key = f'group:{item["page"]}:{item["field"].casefold()}'
+            item['key'] = group_key
+            notes = []
+            for n in item['numbers']:
+                value = (self.note_overrides.get(n, self.default_correction_note(n)) or '').strip()
+                if not value:
+                    value = '[HAPUS TEKS BERLEBIH]'
+                prefix = item['field'] + ':'
+                if value.casefold().startswith(prefix.casefold()):
+                    value = value[len(prefix):].strip()
+                if value and value not in notes:
+                    notes.append(value)
+            default = '\n'.join(notes)
+            if (self.waybill_mode and self.rule_mode.currentData() == 'waybill_gsl'
+                    and item['page'] == 0):
+                record = swb_rules.GSL_DIAGNOSTICS.get(item['field'], {})
+                ref = record.get('rujukan', {})
+                exam = record.get('diperiksa', {})
+                if ref.get('valid') and exam.get('valid') and ref.get('words') and exam.get('words'):
+                    ref_text = self._gsl_field_lines(ref['words'])
+                    exam_text = self._gsl_field_lines(exam['words'])
+                    if ref_text:
+                        explanation = self._gsl_change_explanation(ref_text, exam_text)
+                        default = ('KOREKSI SESUAI RUJUKAN:\n' + ref_text +
+                                   '\n\nPENJELASAN PERUBAHAN:\n' + explanation)
+                else:
+                    default = ('[VERIFIKASI MANUAL DIPERLUKAN: OCR field belum tervalidasi]\n' + default)
+            # Group-level user edits take precedence over generated reference text.
+            item['text'] = self.note_overrides.get(group_key, default)
+            item['anchor'] = min(item['rectangles'], key=lambda r: (r.y0, r.x0))
+            result.append(item)
+        return sorted(result, key=lambda item: (item['page'], item['anchor'].y0, item['anchor'].x0))
+
+    def export_waybill_notes_pdf(self, target):
+        """Vector PDF: one correction box and one connector per field per page."""
         if not self.exam_view.pdf:
             raise ValueError('PDF dokumen diperiksa belum tersedia.')
-        approved = {i + 1: d for i, d in enumerate(self.diffs) if d.apply}
-        if not approved:
-            raise ValueError('Belum ada temuan yang dipilih. Centang temuan untuk diberi catatan koreksi.')
-        marks_by_page = {}
-        for mark in self.exam_marks:
-            number = mark.get('id')
-            if number in approved:
-                marks_by_page.setdefault(mark['page'], []).append(mark)
-        if not marks_by_page:
+        if not any(d.apply for d in self.diffs):
+            raise ValueError('Belum ada temuan yang dipilih.')
+        notes = self.grouped_correction_notes()
+        if not notes:
             raise ValueError('Temuan terpilih tidak memiliki posisi stabilo pada PDF diperiksa.')
         source = self.exam_view.pdf
-        margin = 245
+        margin = 310
+
+        def wrap_note(text, width, fontsize):
+            max_width = width - 15
+            lines = []
+            for paragraph in (text.splitlines() or ['']):
+                words = paragraph.split()
+                if not words:
+                    lines.append('')
+                    continue
+                current = ''
+                for word in words:
+                    candidate = (current + ' ' + word).strip()
+                    if fitz.get_text_length(candidate, fontname='heit', fontsize=fontsize) <= max_width:
+                        current = candidate
+                        continue
+                    if current:
+                        lines.append(current)
+                        current = ''
+                    while word and fitz.get_text_length(word, fontname='heit', fontsize=fontsize) > max_width:
+                        cut = len(word)
+                        while cut > 1 and fitz.get_text_length(word[:cut], fontname='heit', fontsize=fontsize) > max_width:
+                            cut -= 1
+                        lines.append(word[:cut])
+                        word = word[cut:]
+                    current = word
+                if current:
+                    lines.append(current)
+            return lines or ['']
+
         with fitz.open() as output:
             for pno, original in enumerate(source):
                 bounds = original.rect
-                page = output.new_page(width=bounds.width + margin, height=bounds.height)
+                page_notes = [n for n in notes if n['page'] == pno]
+                measured = []
+                for item in page_notes:
+                    lines = wrap_note(item['text'], margin - 30, 9.5)
+                    height = 31 + len(lines) * 14
+                    measured.append((item, lines, height))
+                page_height = max(bounds.height, 43 + sum(height + 8 for _, _, height in measured) + 18)
+                page = output.new_page(width=bounds.width + margin, height=page_height)
                 page.show_pdf_page(fitz.Rect(0, 0, bounds.width, bounds.height), source, pno)
-                marks = marks_by_page.get(pno, [])
-                # Draw existing comparison highlights, including findings not selected
-                # for correction, to retain the same visual audit as 'Dokumen Diperiksa'.
                 for mark in (m for m in self.exam_marks if m['page'] == pno):
                     rect = fitz.Rect(mark['rect'])
                     if rect.is_empty or rect.is_infinite:
@@ -950,57 +1088,42 @@ class Window(QMainWindow):
                     shape.finish(color=rgb, fill=rgb, fill_opacity=0.24,
                                  stroke_opacity=0.60, width=0.4)
                     shape.commit(overlay=True)
-                if not marks:
+                if not measured:
                     continue
                 page.draw_line(fitz.Point(bounds.width + 6, 15),
-                               fitz.Point(bounds.width + 6, bounds.height - 15),
+                               fitz.Point(bounds.width + 6, page_height - 15),
                                color=(0.70, 0.70, 0.70), width=0.6)
                 page.insert_text((bounds.width + 17, 26), 'CATATAN KOREKSI',
                                  fontname='hebo', fontsize=10, color=(0.50, 0.05, 0.12))
-                # One note per finding, even if a finding has multiple word highlights.
-                groups = {}
-                for mark in marks:
-                    groups.setdefault(mark['id'], []).append(fitz.Rect(mark['rect']))
-                sorted_groups = sorted(groups.items(), key=lambda kv: min(r.y0 for r in kv[1]))
                 next_y = 43.0
-                for number, rectangles in sorted_groups:
-                    diff = approved[number]
-                    desired = (self.note_overrides.get(number, self.default_correction_note(number)) or '').strip()
-                    if not desired:
-                        desired = '[HAPUS TEKS BERLEBIH]'
-                    desired = ' '.join(desired.split())
-                    anchor = min(rectangles, key=lambda r: (r.y0, r.x0))
-                    # Estimate note height and adapt to long correction values.
-                    note_width = margin - 30
-                    font_size = 9.5
-                    chars_per_line = max(18, int(note_width / (font_size * 0.52)))
-                    import textwrap
-                    lines = textwrap.wrap(desired, width=chars_per_line,
-                                          break_long_words=True, break_on_hyphens=False)
-                    lines = lines or ['[KOREKSI KOSONG]']
-                    height = 18 + 12 * len(lines) + 9
-                    top = max(next_y, min(anchor.y0, bounds.height - height - 13))
-                    if top + height > bounds.height - 8:
-                        raise ValueError(f'Halaman {pno+1}: catatan koreksi tidak muat di margin. '
-                                         'Kurangi temuan yang dipilih atau ekspor secara terpisah.')
-                    x0 = bounds.width + 14
+                for item, lines, height in measured:
+                    x0, top = bounds.width + 14, next_y
                     rect = fitz.Rect(x0, top, bounds.width + margin - 9, top + height)
-                    page.draw_rect(rect, color=(0.72, 0.52, 0.54), fill=(1, 0.98, 0.96), width=0.6)
-                    page.insert_text((x0 + 6, top + 12), f'#{number:02d}  {diff.kind}',
+                    page.draw_rect(rect, color=(0.72, 0.52, 0.54),
+                                   fill=(1, 0.98, 0.96), width=0.6)
+                    numbers = item['numbers']
+                    label = (f'#{numbers[0]:02d}' if len(numbers) == 1 else
+                             f'#{numbers[0]:02d}-#{numbers[-1]:02d}')
+                    header = f'{label}  Perubahan - {item["field"]}'
+                    # Shorten only the header if needed, never the correction itself.
+                    while (len(header) > 1 and
+                           fitz.get_text_length(header, fontname='hebo', fontsize=8) > rect.width - 12):
+                        header = header[:-1]
+                    page.insert_text((x0 + 6, top + 12), header,
                                      fontname='hebo', fontsize=8, color=(0.48, 0.05, 0.11))
-                    text_rect = fitz.Rect(x0 + 6, top + 17, rect.x1 - 5, rect.y1 - 4)
-                    result = page.insert_textbox(text_rect, desired, fontname='heit',
-                                                 fontsize=font_size, lineheight=1.18,
-                                                 color=(0.35, 0.06, 0.13))
-                    if result < 0:
-                        raise ValueError(f'Catatan #{number} tidak muat. Ekspor dibatalkan.')
-                    # Leader line points to the first highlighted word of the finding.
-                    page.draw_line(fitz.Point(anchor.x1, (anchor.y0 + anchor.y1)/2),
-                                   fitz.Point(x0, top + 9), color=(0.55, 0.15, 0.20), width=0.65)
-                    next_y = top + height + 6
+                    text_rect = fitz.Rect(x0 + 6, top + 21, rect.x1 - 6, rect.y1 - 5)
+                    if page.insert_textbox(text_rect, '\n'.join(lines), fontname='heit',
+                                           fontsize=9.5, lineheight=1.18,
+                                           color=(0.35, 0.06, 0.13)) < 0:
+                        raise ValueError(f'Catatan field {item["field"]} tidak muat.')
+                    anchor = item['anchor']
+                    page.draw_line(fitz.Point(anchor.x1, (anchor.y0 + anchor.y1) / 2),
+                                   fitz.Point(x0, top + 9),
+                                   color=(0.55, 0.15, 0.20), width=0.65)
+                    next_y = top + height + 8
             meta = dict(output.metadata or {})
-            meta['subject'] = ('DocMatch - PDF diperiksa dengan stabilo dan catatan koreksi; '
-                               'teks asli tidak diubah; catatan bukan penggantian PDF')
+            meta['subject'] = ('DocMatch - PDF diperiksa dengan catatan per field; '
+                               'teks asli tidak diubah')
             output.set_metadata(meta)
             output.save(str(target), garbage=3, deflate=True)
 
