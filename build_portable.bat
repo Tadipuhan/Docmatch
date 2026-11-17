@@ -9,7 +9,7 @@ for %%I in (assets\docmatch.ico assets\docmatch_logo.png assets\docmatch_128.png
     exit /b 1
   )
 )
-for %%F in (docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py rules.py) do (
+for %%F in (docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py hybrid_validation.py session_store.py template_manager.py rules.py) do (
   if not exist "%%F" (
     echo [ERROR] File %%F tidak ditemukan. Build dibatalkan.
     echo Salin %%F dari project DocMatch yang sudah berjalan.
@@ -56,17 +56,17 @@ python -m pip install --upgrade pip
 if errorlevel 1 goto failed
 python -m pip install -r requirements-build.txt
 if errorlevel 1 goto failed
-python -m compileall -q docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py rules.py
+python -m compileall -q docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py hybrid_validation.py session_store.py template_manager.py rules.py
 if errorlevel 1 (
   echo [ERROR] Sintaks source tidak valid. Build dibatalkan.
   goto failed
 )
-python -c "import legacy_v01, rules, waybill_rules, gsl_font_recovery, gsl_ocr, editor; print('[OK] Modul internal bisa diimpor')"
+python -c "import legacy_v01, rules, waybill_rules, gsl_font_recovery, gsl_ocr, editor, hybrid_validation; print('[OK] Modul internal bisa diimpor')"
 if errorlevel 1 (
   echo [ERROR] Import modul internal gagal. Build dibatalkan.
   goto failed
 )
-python -m PyInstaller --noconfirm --clean --onedir --windowed --name DocMatch --icon assets\docmatch.ico --add-data "assets;assets" --collect-all pymupdf --hidden-import legacy_v01 --hidden-import rules --hidden-import waybill_rules --hidden-import gsl_font_recovery --hidden-import gsl_ocr --hidden-import editor docmatch.py
+python -m PyInstaller --noconfirm --clean --onedir --windowed --name DocMatch --icon assets\docmatch.ico --add-data "assets;assets" --collect-all pymupdf --hidden-import legacy_v01 --hidden-import rules --hidden-import waybill_rules --hidden-import gsl_font_recovery --hidden-import gsl_ocr --hidden-import editor --hidden-import hybrid_validation --hidden-import session_store --hidden-import template_manager docmatch.py
 if errorlevel 1 goto failed
 xcopy /E /I /Y "tesseract" "dist\DocMatch\_internal\tesseract" >nul
 if errorlevel 1 goto failed

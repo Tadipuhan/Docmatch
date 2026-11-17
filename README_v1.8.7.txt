@@ -1,0 +1,1 @@
+DocMatch v1.8.7 — GSL printed-form labels excluded from field comparison. Removes KOREKSI SESUAI RUJUKAN heading from exported correction notes. Changes are limited to GSL page-one caption filtering and note presentation. Verify OCR coordinates on actual GSL PDFs; no Windows executable build was performed.

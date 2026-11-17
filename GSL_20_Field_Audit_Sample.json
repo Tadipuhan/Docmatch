@@ -1,0 +1,402 @@
+[
+  {
+    "nomor": 1,
+    "field": "Shipper",
+    "status": "SAMA",
+    "rujukan": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA, JL. SURYA UTAMA KAV. 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL, KAB. KARAWANG,*",
+    "diperiksa": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA, JL. SURYA UTAMA KAV. 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL, KAB. KARAWANG,*",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.073,
+        0.49,
+        0.146
+      ]
+    ]
+  },
+  {
+    "nomor": 2,
+    "field": "Booking Number",
+    "status": "BERBEDA",
+    "rujukan": "GOSUJKT8132504",
+    "diperiksa": "GOSUJKT8133061",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.49,
+        0.073,
+        0.69,
+        0.105
+      ]
+    ]
+  },
+  {
+    "nomor": 3,
+    "field": "Waybill Number",
+    "status": "BERBEDA",
+    "rujukan": "GOSUJKT8132504",
+    "diperiksa": "GOSUJKT8133061",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.69,
+        0.073,
+        0.98,
+        0.105
+      ]
+    ]
+  },
+  {
+    "nomor": 4,
+    "field": "Consignee",
+    "status": "BERBEDA",
+    "rujukan": "BRIDGESTONE TIRE SALES KOREA LTD. 12TH FLOOR, GS TOWER 508, NONHYEON-RO, GANGNAM-GU SEOUL 135-985, KOREA**",
+    "diperiksa": "BRIDGESTONE TIRE SALES VIETNAM LLC 9TH FLOOR, 233 DONG KHOI STREET, SAI GON WARD, HO CHI MINH CITY, VIETNAM.**",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.146,
+        0.49,
+        0.237
+      ]
+    ]
+  },
+  {
+    "nomor": 5,
+    "field": "Forwarding Agent",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.49,
+        0.146,
+        0.98,
+        0.208
+      ]
+    ]
+  },
+  {
+    "nomor": 6,
+    "field": "Notify Party",
+    "status": "PERLU_VERIFIKASI",
+    "rujukan": "HANEXPRESS CO.,LTD �BUSAN� RM503, EUNSANBAY B/D,88, JUNGANG-DAERO, JUNG-GU, BUSAN, KOREA***",
+    "diperiksa": "YUSEN LOGISTICS �VIETNAM� CO., LTD. HOCHIMINH BRANCH 2A-4A TON DUC THANG ST, S�� G�� W���, HOCHIMINH CITY***",
+    "rujukan_valid": false,
+    "diperiksa_valid": false,
+    "rujukan_alasan": "Karakter Type3 belum terpetakan",
+    "diperiksa_alasan": "Karakter Type3 belum terpetakan",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.237,
+        0.49,
+        0.341
+      ]
+    ]
+  },
+  {
+    "nomor": 7,
+    "field": "Point and Country of Origin",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.49,
+        0.208,
+        0.98,
+        0.236
+      ]
+    ]
+  },
+  {
+    "nomor": 8,
+    "field": "Remarks",
+    "status": "PERLU_VERIFIKASI",
+    "rujukan": "SHIPPED ON BOARD 24/09/2026 A MISDECLARATION FEE AS WELL AS ALL COSTS RELATING TO MISDECLARATION AND/OR INCOMPLETE DECLARATION SHALL BE CHARGED TO THE MERCHANT - AT CARRIER�S FULL DISCRETION - IN ANY CASE OF SHIPPERS� DANGEROUS GOODS / HA�MAT OR OTHER MISDECLARATION.",
+    "diperiksa": "SHIPPED ON BOARD 15/10/2026 A MISDECLARATION FEE AS WELL AS ALL COSTS RELATING TO MISDECLARATION AND/OR INCOMPLETE DECLARATION SHALL BE CHARGED TO THE MERCHANT - AT CARRIER�S FULL DISCRETION - IN ANY CASE OF SHIPPERS� DANGEROUS GOODS / HA�MAT OR OTHER MISDECLARATION.",
+    "rujukan_valid": false,
+    "diperiksa_valid": false,
+    "rujukan_alasan": "Karakter Type3 belum terpetakan",
+    "diperiksa_alasan": "Karakter Type3 belum terpetakan",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.49,
+        0.237,
+        0.98,
+        0.383
+      ]
+    ]
+  },
+  {
+    "nomor": 9,
+    "field": "Initial Carriage",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.341,
+        0.29,
+        0.365
+      ]
+    ]
+  },
+  {
+    "nomor": 10,
+    "field": "Place of Receipt",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.29,
+        0.341,
+        0.49,
+        0.365
+      ]
+    ]
+  },
+  {
+    "nomor": 11,
+    "field": "Vessel",
+    "status": "BERBEDA",
+    "rujukan": "INTERASIA ENGAGE N044",
+    "diperiksa": "MTT SENARI 046W",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.365,
+        0.29,
+        0.383
+      ]
+    ]
+  },
+  {
+    "nomor": 12,
+    "field": "Port of Loading",
+    "status": "SAMA",
+    "rujukan": "JAKARTA, INDONESIA",
+    "diperiksa": "JAKARTA, INDONESIA",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.29,
+        0.365,
+        0.49,
+        0.383
+      ]
+    ]
+  },
+  {
+    "nomor": 13,
+    "field": "Port of Discharge",
+    "status": "BERBEDA",
+    "rujukan": "BUSAN, KOREA",
+    "diperiksa": "TAN CANG HIEP PHUOC PORT",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.383,
+        0.29,
+        0.421
+      ]
+    ]
+  },
+  {
+    "nomor": 14,
+    "field": "Final Destination",
+    "status": "BERBEDA",
+    "rujukan": "",
+    "diperiksa": "CATLAITERMINAL-HOCHIMIN",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.29,
+        0.383,
+        0.49,
+        0.421
+      ]
+    ]
+  },
+  {
+    "nomor": 15,
+    "field": "Further Routing",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.49,
+        0.383,
+        0.98,
+        0.421
+      ]
+    ]
+  },
+  {
+    "nomor": 16,
+    "field": "Main - Container & Seal",
+    "status": "KOSONG_KEDUANYA",
+    "rujukan": "",
+    "diperiksa": "",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.434,
+        0.3,
+        0.67
+      ]
+    ]
+  },
+  {
+    "nomor": 17,
+    "field": "Main - Cargo Description",
+    "status": "PERLU_VERIFIKASI",
+    "rujukan": "CONT TOT. TARE �3,�00 1 CARGO W � �,6��.6� �0.41 KGS M3 AS��PER��ATTACHED��LIST",
+    "diperiksa": "CONT TOT. TARE �11,120 3 CARGO W � 23,238.42 216.821 KGS M3 AS��PER��ATTACHED��LIST",
+    "rujukan_valid": false,
+    "diperiksa_valid": false,
+    "rujukan_alasan": "Karakter Type3 belum terpetakan",
+    "diperiksa_alasan": "Karakter Type3 belum terpetakan",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.3,
+        0.434,
+        0.98,
+        0.67
+      ]
+    ]
+  },
+  {
+    "nomor": 18,
+    "field": "Main - Clauses",
+    "status": "SAMA",
+    "rujukan": "CLAUSES AS PER ATT.LIST",
+    "diperiksa": "CLAUSES AS PER ATT.LIST",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.07,
+        0.67,
+        0.98,
+        0.855
+      ]
+    ]
+  },
+  {
+    "nomor": 19,
+    "field": "Freight Payable At",
+    "status": "SAMA",
+    "rujukan": "SINGAPORE",
+    "diperiksa": "SINGAPORE",
+    "rujukan_valid": true,
+    "diperiksa_valid": true,
+    "rujukan_alasan": "",
+    "diperiksa_alasan": "",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.57,
+        0.855,
+        0.98,
+        0.892
+      ]
+    ]
+  },
+  {
+    "nomor": 20,
+    "field": "Place & Date of Issue",
+    "status": "PERLU_VERIFIKASI",
+    "rujukan": "JAKARTA �� 24/09/2026",
+    "diperiksa": "JAKARTA �� 16/10/2026",
+    "rujukan_valid": false,
+    "diperiksa_valid": false,
+    "rujukan_alasan": "Karakter Type3 belum terpetakan",
+    "diperiksa_alasan": "Karakter Type3 belum terpetakan",
+    "koordinat_normalisasi": [
+      [
+        0,
+        0.57,
+        0.892,
+        0.98,
+        0.928
+      ]
+    ]
+  }
+]
