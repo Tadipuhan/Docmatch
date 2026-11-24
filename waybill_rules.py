@@ -10,6 +10,8 @@ from textnorm import normalize_text
 from flexible_reference import detect_flexible_pdf, extract_flexible
 from anl_form import ANL_FIELDS, extract_anl_form
 from anl_semantics import fields_equal
+from cross_carrier import (detect_reference_profile, reference_field_map, PROFILE_LABELS,
+                           normalized_value, measurement_signature, split_compound_record, container_pairs)
 
 GSL_SKIPPED_FIELDS = []
 GSL_DIAGNOSTICS = {}
@@ -557,7 +559,13 @@ def _gsl_changed_hits(a,b,kind):
     hb=[{'page':b[j]['page'],'rect':b[j]['rect'],'kind':kind} for j in ib] or _hits(b,0,len(b),kind)
     return ha,hb
 
-def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_anl'):
+def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_anl',reference_profile='same'):
+    """Compare PDF B fields against independently extracted PDF A.
+
+    reference_profile='auto' detects A from the document (safe failure on
+    ambiguity). 'same' retains the pre-v1.8.35.8 API behavior; an explicit
+    waybill_* overrides detection for image-only/uncertain reference PDFs.
+    """
     cells=_profile_cells(profile)
     selected=set(selected) if selected is not None else set(cells)
     global GSL_SKIPPED_FIELDS, GSL_DIAGNOSTICS, REFERENCE_NEEDS_REVIEW, REFERENCE_EXTRACTION_DIAGNOSTICS
@@ -570,15 +578,57 @@ def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_a
     # corresponding carrier form. This preserves each carrier's field list.
     is_anl = profile in ('waybill','waybill_anl',None)
     reference_flexible = detect_flexible_pdf(reference_pdf, selected)
-    # v1.8.33.2: pada profil ANL kata rujukan dibaca per kata supaya penanda hanya menutup nilai.
-    ref = (extract_flexible(reference_pdf, selected, word_level=is_anl) if reference_flexible
-           else extract(reference_pdf, selected, profile))
+    if reference_profile == 'auto':
+        detected = detect_reference_profile(reference_pdf, selected)
+        if reference_flexible:
+            actual_ref_profile = 'flexible'
+        elif detected in PROFILE_LABELS:
+            actual_ref_profile = detected
+        else:
+            raise ValueError('Profil SWB Dokumen A tidak dapat dipastikan. Pilih profil Dokumen A secara manual pada panel parameter; jangan menggunakan profil PDF B untuk menebak koordinat PDF A.')
+    elif reference_profile in (None, 'same'):
+        actual_ref_profile = 'flexible' if reference_flexible else profile
+    elif reference_profile == 'flexible':
+        actual_ref_profile = 'flexible'
+        reference_flexible = True
+    elif reference_profile in PROFILE_LABELS:
+        identified = detect_reference_profile(reference_pdf, selected)
+        if identified in PROFILE_LABELS and identified != reference_profile:
+            raise ValueError('Profil Dokumen A yang dipilih tidak sesuai dengan identifikasi dokumen: '
+                             + PROFILE_LABELS[identified] + '. Periksa pilihan profil PDF A.')
+        if reference_flexible:
+            raise ValueError('Dokumen A terdeteksi sebagai surat/tabel rujukan, bukan formulir SWB. Pilih Deteksi Otomatis untuk Dokumen A.')
+        actual_ref_profile = reference_profile
+    else:
+        raise ValueError('Profil Dokumen A tidak dikenal: ' + str(reference_profile))
+    # The examined document owns the selected field list. Match it to the
+    # reference's own field names; never apply B coordinates to carrier A.
+    if actual_ref_profile == 'flexible':
+        ref_mapping = {name: name for name in selected}
+        reference_names = set(selected)
+    elif actual_ref_profile == profile:
+        ref_mapping = {name: name for name in selected}
+        reference_names = set(selected)
+    else:
+        reference_names = set(profile_field_names(actual_ref_profile))
+        ref_mapping = reference_field_map(selected, reference_names)
+    requested_ref = {source for value in ref_mapping.values()
+                     for source in (value if isinstance(value, tuple) else (value,))}
+    # ANL uses semantic words for its own form; cross-carrier comparisons use
+    # distinct words from the reference's own extractor.
+    ref = (extract_flexible(reference_pdf, requested_ref, word_level=is_anl) if reference_flexible
+           else extract(reference_pdf, requested_ref, actual_ref_profile))
     # Allow a labelled PDF B for diagnostics/tests; carrier forms keep their own engine.
     examined_flexible = detect_flexible_pdf(examined_pdf, selected)
     exam = (extract_flexible(examined_pdf, selected, word_level=is_anl) if examined_flexible
             else extract(examined_pdf, selected, profile))
+    REFERENCE_EXTRACTION_DIAGNOSTICS = {
+        'reference_profile': actual_ref_profile,
+        'examined_profile': profile,
+        'field_map': dict(ref_mapping),
+    }
     if reference_flexible:
-        REFERENCE_EXTRACTION_DIAGNOSTICS = {
+        REFERENCE_EXTRACTION_DIAGNOSTICS['fields'] = {
             f: {'valid': bool(v.get('valid')), 'text': v.get('text',''),
                 'reason':v.get('reason',''), 'source':v.get('source','')}
             for f,v in ref.items()
@@ -586,7 +636,64 @@ def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_a
     differences=[];locations=[]
     for name in cells:
         if name not in selected:continue
-        if reference_flexible and not ref[name].get('valid',False):
+        source_name = ref_mapping.get(name)
+        if not source_name:
+            REFERENCE_NEEDS_REVIEW.append(name)
+            continue
+        if isinstance(source_name, tuple):
+            components = [ref.get(part) for part in source_name]
+            if any(not v or v.get('valid') is False or not v.get('words') for v in components):
+                REFERENCE_NEEDS_REVIEW.append(name)
+                continue
+            ref_record = {'text': ' / '.join(v['text'] for v in components),
+                          'words': [w for v in components for w in v['words']], 'valid': True}
+        else:
+            if source_name not in ref:
+                REFERENCE_NEEDS_REVIEW.append(name)
+                continue
+            ref_record = ref[source_name]
+            if source_name != name and source_name in ('Vessel / Voyage','Weight & Measurement'):
+                ref_record = split_compound_record(ref_record, name)
+        exam_record = exam.get(name, {'text':'','words':[],'valid':False})
+        # Real cross-carrier forms contain optional/position-dependent cells.
+        # An empty value without independent validation is *unknown*, not equal.
+        cross_carrier = actual_ref_profile not in ('flexible', profile)
+        if cross_carrier and (ref_record.get('valid') is False or exam_record.get('valid') is False
+                              or not ref_record.get('words') or not exam_record.get('words')):
+            REFERENCE_NEEDS_REVIEW.append(name)
+            continue
+        # In the cross-profile path we compare complete values. Only the
+        # corresponding word boxes are highlighted, never the other profile's.
+        if cross_carrier:
+            a, b = ref_record['words'], exam_record['words']
+            ref_text, exam_text = ref_record['text'], exam_record['text']
+            same = fields_equal(name, ref_text, exam_text)
+            if name in ('Container & Seal', 'Main - Container & Seal'):
+                pair_a, pair_b = container_pairs(ref_text), container_pairs(exam_text)
+                # Do not let a loose container-number match silently hide a
+                # changed seal or a different container-to-seal pairing.
+                same = (pair_a == pair_b if pair_a is not None and pair_b is not None
+                        else normalized_value(ref_text) == normalized_value(exam_text))
+            if name in ('Gross Weight', 'Gross Measurement', 'Weight & Measurement'):
+                sig_a, sig_b = (measurement_signature(t, name) for t in (ref_text, exam_text))
+                if sig_a is not None and sig_b is not None:
+                    # Unit aliases (KG/KGS; CBM/cu.m) carry the same meaning.
+                    def units(signature):
+                        return tuple((kind, qty, 'kg' if unit in ('kg','kgs','kilogram','kilograms')
+                                      else 'm3' if unit in ('cbm','cum','m3','cubicmeter','cubicmeters')
+                                      else unit) for kind, qty, unit in signature)
+                    same = units(sig_a) == units(sig_b)
+                else:
+                    same = normalized_value(ref_text) == normalized_value(exam_text)
+            if same is None:
+                same = normalized_value(ref_text) == normalized_value(exam_text)
+            if not same:
+                kind = 'Perubahan' if a and b else ('Hilang' if a else 'Berlebih')
+                differences.append(WaybillDifference(kind,None,None,ref_text,exam_text,
+                    'Cross-carrier: '+(' + '.join(source_name) if isinstance(source_name, tuple) else source_name)+' (A) ↔ '+name+' (B); '+kind,False,name))
+                locations.append(({'hits':_hits(a,0,len(a),kind)}, {'hits':_hits(b,0,len(b),kind)}))
+            continue
+        if reference_flexible and not ref_record.get('valid',False):
             REFERENCE_NEEDS_REVIEW.append(name)
             if profile=='waybill_gsl': GSL_SKIPPED_FIELDS.append(name)
             # An absent field on the reference is unknown, not an empty value.
@@ -596,27 +703,27 @@ def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_a
             if profile=='waybill_gsl': GSL_SKIPPED_FIELDS.append(name)
             continue
         if profile=='waybill_gsl':
-            GSL_DIAGNOSTICS[name] = {'rujukan': {'valid': ref[name].get('valid'), 'text': ref[name].get('text',''), 'words': ref[name].get('words',[]), 'reason': ref[name].get('reason',''), 'source': ref[name].get('source','')}, 'diperiksa': {'valid': exam[name].get('valid'), 'text': exam[name].get('text',''), 'words': exam[name].get('words',[]), 'reason': exam[name].get('reason',''), 'source': exam[name].get('source','')}}
-            if (ref[name].get('valid') is False or exam[name].get('valid') is False):
+            GSL_DIAGNOSTICS[name] = {'rujukan': {'valid': ref_record.get('valid'), 'text': ref_record.get('text',''), 'words': ref_record.get('words',[]), 'reason': ref_record.get('reason',''), 'source': ref_record.get('source','')}, 'diperiksa': {'valid': exam[name].get('valid'), 'text': exam[name].get('text',''), 'words': exam[name].get('words',[]), 'reason': exam[name].get('reason',''), 'source': exam[name].get('source','')}}
+            if (ref_record.get('valid') is False or exam[name].get('valid') is False):
                 GSL_SKIPPED_FIELDS.append(name)
                 continue
-        a=ref[name]['words'];b=exam[name]['words']
+        a=ref_record['words'];b=exam[name]['words']
         # Flexible documents may wrap the same sentence at different positions.
         # Compare the full field without layout-induced whitespace, and never
         # turn an unknown field into a false MATCH.
         if reference_flexible or examined_flexible:
-            ref_text, exam_text = ref[name]['text'], exam[name]['text']
+            ref_text, exam_text = ref_record['text'], exam[name]['text']
             # ANL: bandingkan NILAI kanonik (angka, kontainer, tanggal) bila layout rujukan berbeda
             # dari formulir; hasilnya None bila tidak ada aturan -> perbandingan teks biasa.
             same = None
             if is_anl:
-                ref_value = ref[name].get('semantic_text', ref_text)
+                ref_value = ref_record.get('semantic_text', ref_text)
                 exam_value = exam[name].get('semantic_text', exam_text)
                 same = fields_equal(name, ref_value, exam_value)
                 if 'semantic_words' in exam[name]:
                     b, exam_text = exam[name]['semantic_words'], exam_value
-                if 'semantic_words' in ref[name]:
-                    a, ref_text = ref[name]['semantic_words'], ref_value
+                if 'semantic_words' in ref_record:
+                    a, ref_text = ref_record['semantic_words'], ref_value
             if same is None:
                 at = re.sub(r'\s+', '', ref_text).casefold()
                 bt = re.sub(r'\s+', '', exam_text).casefold()
@@ -646,7 +753,7 @@ def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_a
             if op=='equal':continue
             kind={'replace':'Perubahan','delete':'Hilang','insert':'Berlebih'}[op]
             differences.append(WaybillDifference(kind,None,None,' '.join(w['word'] for w in a[i1:i2]),
-                ' '.join(w['word'] for w in b[j1:j2]),'Field Waybill: '+name+'; '+kind + ('; OCR — verifikasi manual' if profile=='waybill_gsl' and (ref[name].get('source')=='OCR' or exam[name].get('source')=='OCR') else ''),False,name))
+                ' '.join(w['word'] for w in b[j1:j2]),'Field Waybill: '+name+'; '+kind + ('; OCR — verifikasi manual' if profile=='waybill_gsl' and (ref_record.get('source')=='OCR' or exam[name].get('source')=='OCR') else ''),False,name))
             locations.append(({'hits':_hits(a,i1,i2,kind)}, {'hits':_hits(b,j1,j2,kind)}))
     return differences,locations
 

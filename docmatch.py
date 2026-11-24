@@ -14,6 +14,7 @@ from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreo
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
 from waybill_rules import FIELDS, compare_waybills, profile_field_names, WaybillDifference
+from cross_carrier import PROFILES, PROFILE_LABELS
 from hybrid_validation import HybridValidationDialog
 import waybill_rules as swb_rules
 from session_store import save_session, load_session, fingerprint
@@ -385,6 +386,24 @@ class Window(QMainWindow):
         self.run_btn.clicked.connect(self.run)
         rules_bar.addWidget(self.run_btn)
         step2_layout.addLayout(rules_bar)
+        # PDF A may be an independent shipping line. The PDF B preset above
+        # always controls the examined-side fields and marker coordinates.
+        self.reference_profile_bar = QWidget()
+        ref_controls = QHBoxLayout(self.reference_profile_bar)
+        ref_controls.setContentsMargins(1, 1, 1, 1)
+        ref_controls.setSpacing(8)
+        reference_label = QLabel('Profil Dokumen A (rujukan):')
+        reference_label.setToolTip('Deteksi mandiri untuk PDF A; jika logo atau teks tidak dapat dibaca, pilih profil manual.')
+        ref_controls.addWidget(reference_label)
+        self.reference_profile_combo = QComboBox()
+        self.reference_profile_combo.addItem('Deteksi Otomatis (disarankan)', 'auto')
+        for profile_id, profile_label in PROFILES:
+            self.reference_profile_combo.addItem('SWB - ' + profile_label, profile_id)
+        self.reference_profile_combo.setToolTip('Tidak mengubah profil Dokumen B. Pilih manual jika PDF A tidak teridentifikasi.')
+        self.reference_profile_combo.setMinimumWidth(220)
+        ref_controls.addWidget(self.reference_profile_combo, 1)
+        self.reference_profile_combo.currentIndexChanged.connect(self.mode_changed)
+        step2_layout.addWidget(self.reference_profile_bar)
         self.wizard_stack.addWidget(step2)
         # Step 3: the original result page, including Word-style ribbon.
         step3=QWidget()
@@ -600,7 +619,7 @@ class Window(QMainWindow):
         self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
         self.active_scope=set();self.uncertain=[];self.rule_groups={}
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
-        self.note_overrides={};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None
+        self.note_overrides={};self._reference_profile_actual=None;self._reference_field_map={};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None
         self.autosave_timer.stop()
         self.list.clear()
         self.detail.setText('Dokumen atau parameter berubah. Jalankan perbandingan baru.')
@@ -637,6 +656,8 @@ class Window(QMainWindow):
         is_waybill=str(self.rule_mode.currentData()).startswith('waybill')
         self.scope_btn.setEnabled(not is_waybill)
         self.waybill_btn.setEnabled(is_waybill)
+        if hasattr(self, 'reference_profile_bar'):
+            self.reference_profile_bar.setVisible(is_waybill)
         if is_waybill:
             # Do not carry a field subset from another shipping-line template.
             selected_profile = self.rule_mode.currentData()
@@ -717,7 +738,14 @@ class Window(QMainWindow):
                 if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
                 a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
                 refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
-                self.diffs,locations=compare_waybills(refpdf,exampdf,self.waybill_fields & set(profile_field_names(self.rule_mode.currentData())),profile=self.rule_mode.currentData())
+                self.diffs,locations=compare_waybills(
+                    refpdf, exampdf,
+                    self.waybill_fields & set(profile_field_names(self.rule_mode.currentData())),
+                    profile=self.rule_mode.currentData(),
+                    reference_profile=self.reference_profile_combo.currentData())
+                self._reference_profile_actual = swb_rules.REFERENCE_EXTRACTION_DIAGNOSTICS.get(
+                    'reference_profile', self.rule_mode.currentData())
+                self._reference_field_map = dict(swb_rules.REFERENCE_EXTRACTION_DIAGNOSTICS.get('field_map', {}))
                 self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
                 self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
                 for i,(ref_loc,exam_loc) in enumerate(locations,1):
@@ -729,7 +757,11 @@ class Window(QMainWindow):
                 self.sort_differences()
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
                 self.populate();self.enable_results();self.show_step(1)
-                self.status.setText(f'{self.rule_mode.currentText()} · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
+                a_profile = (PROFILE_LABELS.get(self._reference_profile_actual,
+                             'Surat/tabel fleksibel' if self._reference_profile_actual == 'flexible'
+                             else str(self._reference_profile_actual)))
+                b_profile = PROFILE_LABELS.get(self.rule_mode.currentData(), self.rule_mode.currentText())
+                self.status.setText(f'Rujukan A: {a_profile} → Diperiksa B: {b_profile} · {len(self.waybill_fields)} field · {len(self.diffs)} temuan.')
                 if swb_rules.REFERENCE_NEEDS_REVIEW:
                     unresolved=sorted(set(swb_rules.REFERENCE_NEEDS_REVIEW))
                     self.status.setText(self.status.text() + f' · {len(unresolved)} field perlu verifikasi')
@@ -1657,16 +1689,21 @@ class Window(QMainWindow):
                           if is_address_field(item['field'])}
         address_source = getattr(getattr(self, 'ref_view', None), 'pdf', None)
         source_path = getattr(address_source, 'name', None) or getattr(self, 'ref_path', None)
-        profile = self.rule_mode.currentData()
-        reference_values = (address_reference_values(source_path, profile, address_fields)
+        profile = getattr(self, '_reference_profile_actual', None) or self.rule_mode.currentData()
+        # Flexible letters need the examined field vocabulary as stop labels;
+        # carrier SWBs use the independently detected source carrier's labels.
+        note_profile = self.rule_mode.currentData() if profile == 'flexible' else profile
+        note_field_map = getattr(self, '_reference_field_map', None) or None
+        reference_values = (address_reference_values(source_path, note_profile, address_fields,
+                                                     field_map=note_field_map)
                             if address_fields else {})
-        # Cargo/weight notes use the same independent PDF A, but keep its
+        # v1.8.35.6: Cargo/weight notes use the same independent PDF A, but keep its
         # visually aligned rows. No change to the comparison/marker engine.
         structured_fields = {item['field'] for item in grouped.values()
                              if is_structured_field(item['field'])}
         if structured_fields:
             reference_values.update(structured_reference_values(
-                source_path, profile, structured_fields))
+                source_path, note_profile, structured_fields, field_map=note_field_map))
         result = []
         for item in grouped.values():
             item['numbers'].sort()
@@ -2063,6 +2100,9 @@ class Window(QMainWindow):
         return {
             'documents':{'reference':fingerprint(self.ref_path),'examined':fingerprint(self.exam_path)},
             'comparison':{'waybill_mode':self.waybill_mode,'preset':self.rule_mode.currentData(),
+                'reference_profile_selection':self.reference_profile_combo.currentData(),
+                'reference_profile_detected':self._reference_profile_actual,
+                'reference_field_map':self._reference_field_map,
                 'fields':sorted(self.waybill_fields),'diffs':[asdict(x) for x in self.diffs],
                 'baseline_diffs':[asdict(x) for x in baseline['diffs']],
                 'ref_marks':self._marks_for_json(self.ref_marks),'exam_marks':self._marks_for_json(self.exam_marks),
@@ -2139,6 +2179,14 @@ class Window(QMainWindow):
             self.rule_mode.setCurrentIndex(ix)
             self.rule_mode.blockSignals(False)
             self.mode_changed()
+            selection = data.get('reference_profile_selection', 'auto')
+            ref_ix = self.reference_profile_combo.findData(selection)
+            if ref_ix >= 0:
+                self.reference_profile_combo.blockSignals(True)
+                self.reference_profile_combo.setCurrentIndex(ref_ix)
+                self.reference_profile_combo.blockSignals(False)
+            self._reference_profile_actual = data.get('reference_profile_detected') or preset
+            self._reference_field_map = dict(data.get('reference_field_map') or {})
             self.waybill_mode=bool(data['waybill_mode']);self.waybill_fields=set(data['fields'])
             cls=WaybillDifference if self.waybill_mode else Difference
             self.diffs=[cls(**d) for d in data['diffs']]
@@ -2193,7 +2241,7 @@ class Window(QMainWindow):
             QMessageBox.warning(self,'Belum ada laporan','Jalankan perbandingan dan/atau validasi tahap kedua.');return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_preset':self.rule_mode.currentData() if self.waybill_mode else None,'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'audit_history':self.audit_events,'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','hybrid_stage2':{'annotations':self.stage2_annotations,'visible_fields':[f for f in self.stage2_annotations if self.stage2_visibility.get(f,True)],'records':list(self.hybrid_stage2_records.values()),'stage1_baseline_preserved_for_audit':True,'active_findings_updated':self.waybill_mode,'original_differences':[asdict(d) for d in (self._stage1_baseline or {}).get('diffs',[])]},'differences':[
+            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_preset':self.rule_mode.currentData() if self.waybill_mode else None,'reference_profile':getattr(self,'_reference_profile_actual',None) if self.waybill_mode else None,'reference_field_map':getattr(self,'_reference_field_map',{}) if self.waybill_mode else {},'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'audit_history':self.audit_events,'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','hybrid_stage2':{'annotations':self.stage2_annotations,'visible_fields':[f for f in self.stage2_annotations if self.stage2_visibility.get(f,True)],'records':list(self.hybrid_stage2_records.values()),'stage1_baseline_preserved_for_audit':True,'active_findings_updated':self.waybill_mode,'original_differences':[asdict(d) for d in (self._stage1_baseline or {}).get('diffs',[])]},'differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2,default=pdf_json_default),encoding='utf-8')

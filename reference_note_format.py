@@ -104,7 +104,7 @@ def _verbatim_from_words(doc, words):
     return '\n'.join(lines_out).strip('\r\n')
 
 
-def address_reference_values(path, profile, fields):
+def address_reference_values(path, profile, fields, field_map=None):
     """Read *complete* field values from PDF A for note presentation only.
 
     Do not guess unavailable fields. A failure returns no override, leaving the
@@ -113,20 +113,28 @@ def address_reference_values(path, profile, fields):
     requested = {str(field) for field in fields if is_address_field(field)}
     if not requested or not path:
         return {}
+    field_map = field_map or {field: field for field in requested}
+    source_fields = {source for field in requested if field in field_map
+                     for source in (field_map[field] if isinstance(field_map[field], (tuple, list))
+                                    else (field_map[field],))}
+    if not source_fields:
+        return {}
     from flexible_reference import detect_flexible_pdf, extract_flexible
     from waybill_rules import extract, profile_field_names
     path = str(path)
     # Use *all* carrier field labels as stop boundaries. Without them the last
     # address (Notify Party) may swallow the following Document Number / Port.
-    all_labels = set(profile_field_names(profile)) | requested
+    all_labels = set(profile_field_names(profile)) | source_fields
     try:
-        is_flexible = detect_flexible_pdf(path, all_labels)
+        is_flexible = detect_flexible_pdf(path, all_labels) if profile != 'flexible' else True
         records = (extract_flexible(path, all_labels, word_level=False) if is_flexible else
-                   extract(path, requested, profile=profile))
+                   extract(path, source_fields, profile=profile))
         result = {}
         with fitz.open(path) as doc:
             for field in requested:
-                item = records.get(field) or {}
+                lookup = field_map.get(field)
+                item = records.get(lookup) if isinstance(lookup, str) else None
+                item = item or {}
                 if item.get('valid') is False or not item.get('words'):
                     continue
                 native = _verbatim_from_words(doc, item['words'])
@@ -222,7 +230,7 @@ def _suspect_cross_column(field: str, value: str) -> bool:
     return False
 
 
-def structured_reference_values(path, profile, fields):
+def structured_reference_values(path, profile, fields, field_map=None):
     """Complete, source-faithful cargo / weight notes from independent PDF A.
 
     Supports labeled free-layout references and original carrier waybills. If a
@@ -232,21 +240,34 @@ def structured_reference_values(path, profile, fields):
     requested = {str(field) for field in fields if is_structured_field(field)}
     if not requested or not path:
         return {}
+    field_map = field_map or {field: field for field in requested}
+    source_fields = {source for field in requested if field in field_map
+                     for source in (field_map[field] if isinstance(field_map[field], (tuple, list))
+                                    else (field_map[field],))}
+    if not source_fields:
+        return {}
     from flexible_reference import detect_flexible_pdf, extract_flexible
     from waybill_rules import extract, profile_field_names
     path = str(path)
-    labels = set(profile_field_names(profile)) | requested
+    labels = set(profile_field_names(profile)) | source_fields
     try:
-        is_flexible = detect_flexible_pdf(path, labels)
+        is_flexible = detect_flexible_pdf(path, labels) if profile != 'flexible' else True
         records = (extract_flexible(path, labels, word_level=False) if is_flexible else
-                   extract(path, requested, profile=profile))
+                   extract(path, source_fields, profile=profile))
         with fitz.open(path) as doc:
             result = {}
             for field in requested:
-                item = records.get(field) or {}
-                if item.get('valid') is False or not item.get('words'):
+                lookup = field_map.get(field)
+                sources = lookup if isinstance(lookup, (tuple, list)) else (lookup,)
+                sources = [records.get(source) for source in sources if source]
+                if not sources or any(not item or item.get('valid') is False or not item.get('words')
+                                      for item in sources):
                     continue
-                native = _verbatim_structured_rows(doc, item['words'])
+                native = _verbatim_structured_rows(
+                    doc, [word for item in sources for word in item['words']])
+                if lookup == 'Weight & Measurement' and field in ('Gross Weight', 'Gross Measurement'):
+                    from cross_carrier import _part
+                    native = _part(native, field) or ''
                 if native.strip() and not _suspect_cross_column(field, native):
                     result[field] = native
             return result
