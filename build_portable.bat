@@ -9,7 +9,7 @@ for %%I in (assets\docmatch.ico assets\docmatch_logo.png assets\docmatch_128.png
     exit /b 1
   )
 )
-for %%F in (docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py hybrid_validation.py session_store.py template_manager.py correction_note_layout.py correction_markers.py correction_preview.py reference_note_format.py rules.py) do (
+for %%F in (docmatch.py legacy_v01.py waybill_rules.py gsl_font_recovery.py gsl_ocr.py editor.py hybrid_validation.py session_store.py template_manager.py correction_note_layout.py correction_markers.py correction_preview.py reference_note_format.py rules.py pack_portable.py) do (
   if not exist "%%F" (
     echo [ERROR] File %%F tidak ditemukan. Build dibatalkan.
     echo Salin %%F dari project DocMatch yang sudah berjalan.
@@ -82,7 +82,17 @@ if not exist "dist\DocMatch\_internal\assets\docmatch_logo.png" (
 )
 python -c "from pathlib import Path; p=Path('dist/DocMatch/_internal'); names=['legacy_v01','rules','waybill_rules','editor']; print('Build tersedia:',p.exists()); print('Periksa semua modul saat uji .exe di Windows')"
 echo.
-echo [OK] Hasil: dist\DocMatch\DocMatch.exe
+echo [DocMatch] Membuat ZIP portable dan memverifikasi semua file...
+python pack_portable.py
+if errorlevel 1 (
+  echo [ERROR] Aplikasi sudah ter-build, tetapi kompresi gagal.
+  echo [INFO] dist\DocMatch tidak dihapus. Periksa output pack_portable.py.
+  goto failed
+)
+echo.
+echo [OK] EXE: dist\DocMatch\DocMatch.exe
+echo [OK] ZIP: dist\DocMatch_Portable.zip
+echo [INFO] Jika 7-Zip tersedia: dist\DocMatch_Portable.7z
 pause
 exit /b 0
 :failed

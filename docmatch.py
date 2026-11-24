@@ -287,7 +287,7 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.8.35.6 — Reference Cargo Formatting (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.8.35.7 — Auto Portable Packaging (Offline)');self.resize(1100,740)
         self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False;self.has_compared=False
@@ -520,7 +520,7 @@ class Window(QMainWindow):
                   available.y()+max(0,(available.height()-self.height())//2))
         self.document_split.setSizes([540,540])
         split.setSizes(responsive_split_widths(self.width()-30,360))
-        self.status=QLabel('v1.8.35.6 · Catatan alamat & muatan sesuai rujukan · Offline')
+        self.status=QLabel('v1.8.35.7 · Catatan rujukan & Auto ZIP Portable · Offline')
         main.addWidget(self.status)
         for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
