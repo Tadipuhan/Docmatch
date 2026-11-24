@@ -19,6 +19,12 @@ import waybill_rules as swb_rules
 from session_store import save_session, load_session, fingerprint
 from template_manager import read_templates, write_templates, validate_templates
 from ui_layout_state import group_check_state, responsive_split_widths
+from correction_note_layout import NOTE_MARGIN, note_box_layout
+from correction_markers import draw_number_marker, scan_ink_guard
+from correction_preview import CorrectionPreview
+from export_naming import correction_pdf_filename
+from reference_note_format import (address_reference_values, is_address_field,
+                                   structured_reference_values, is_structured_field)
 
 def pdf_json_default(value):
     """Convert PyMuPDF geometry to JSON primitives without losing coordinates."""
@@ -281,10 +287,10 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.8.30.4-fix1 — Compact Unified Ribbon (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.8.35.6 — Reference Cargo Formatting (Offline)');self.resize(1100,740)
         self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
-        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False
+        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False;self.has_compared=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(8,5,8,6);main.setSpacing(3)
         header=QHBoxLayout()
         header.setContentsMargins(0,0,0,0)
@@ -440,13 +446,18 @@ class Window(QMainWindow):
         self.results_tabs.setTabToolTip(0,'Tahap 1 · Daftar Ketidaksesuaian')
         self.results_tabs.setTabToolTip(1,'Tahap 2 · Penanda')
         s.addWidget(self.results_tabs,1)
+        # Validation remains reachable while the comparison stays in Step 2.
+        self.inspector_validation_btn=QPushButton('Validasi Tahap 2…')
+        self.inspector_validation_btn.clicked.connect(self.open_hybrid_validation)
+        self.inspector_validation_btn.setEnabled(False)
+        s.addWidget(self.inspector_validation_btn)
         self.hybrid_btn=QPushButton('▣  Manual Validation — Tahap 2')
         self.hybrid_btn.setObjectName('primary')
         self.hybrid_btn.clicked.connect(self.open_hybrid_validation)
         self.editor_btn=QPushButton('✎  Edit Hasil Koreksi');self.editor_btn.clicked.connect(self.open_editor)
         self.editor_text=None;self.editor_initial=None;self.editor_source=None;self.note_overrides={}
         self.apply_btn=QPushButton('Ekspor DOCX / Laporan Waybill');self.apply_btn.setObjectName('primary');self.apply_btn.clicked.connect(self.export_docx)
-        self.notes_btn=QPushButton('Preview & Edit Catatan Koreksi…');self.notes_btn.clicked.connect(self.visual_correction_notes)
+        self.notes_btn=QPushButton('Perbarui Preview Catatan');self.notes_btn.clicked.connect(lambda:self.correction_preview.refresh())
         self.pdf_btn=QPushButton('Ekspor Hasil Pemeriksaan PDF…');self.pdf_btn.clicked.connect(self.export_pdf)
         self.report_btn=QPushButton('Ekspor Laporan (JSON)');self.report_btn.clicked.connect(self.export_report)
         # Keep existing callbacks while presenting actions as a Word-style ribbon.
@@ -470,7 +481,7 @@ class Window(QMainWindow):
         for button,label in ((self.back_to_compare_btn,'← Parameter & Bandingkan'),
                              (self.hybrid_btn,'Validasi Tahap 2'),
                              (self.editor_btn,'Edit Koreksi'),
-                             (self.notes_btn,'Catatan Koreksi'),
+                             (self.notes_btn,'Perbarui Catatan'),
                              (self.apply_btn,'Ekspor DOCX'),
                              (self.pdf_btn,'Ekspor PDF'),
                              (self.report_btn,'Ekspor JSON')):
@@ -493,7 +504,13 @@ class Window(QMainWindow):
         split.splitterMoved.connect(self._remember_inspector_width)
         split.setStretchFactor(0, 4)
         split.setStretchFactor(1, 1)
-        main.addWidget(split,1)
+        # Step 2 keeps two synchronized document viewers and inspector;
+        # Step 3 shows a SINGLE corrected-document page with editable margin notes.
+        self.workspace_pages = QStackedWidget()
+        self.workspace_pages.addWidget(split)
+        self.correction_preview = CorrectionPreview(self)
+        self.workspace_pages.addWidget(self.correction_preview)
+        main.addWidget(self.workspace_pages, 1)
         from PySide6.QtWidgets import QApplication
         available=QApplication.primaryScreen().availableGeometry()
         width=min(1600, max(900, int(available.width()*0.98)))
@@ -503,9 +520,9 @@ class Window(QMainWindow):
                   available.y()+max(0,(available.height()-self.height())//2))
         self.document_split.setSizes([540,540])
         split.setSizes(responsive_split_widths(self.width()-30,360))
-        self.status=QLabel('v1.8.30.10 · Workspace compact adaptif · Checkbox seluruh field · 100% Offline')
+        self.status=QLabel('v1.8.35.6 · Catatan alamat & muatan sesuai rujukan · Offline')
         main.addWidget(self.status)
-        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn):
+        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
         self.setStyleSheet(f'''QMainWindow,QWidget{{background:{BG};color:{DARK};font-family:Segoe UI,Arial;font-size:12px}}
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:6px;padding:6px 9px}}
@@ -557,12 +574,17 @@ class Window(QMainWindow):
         self.wizard_stack.setVisible(index != 2)
         if hasattr(self, 'result_ribbon'):
             self.result_ribbon.setVisible(index == 2)
-        if index == 2 and hasattr(self, 'ref_view'):
+        if hasattr(self, 'workspace_pages'):
+            self.workspace_pages.setCurrentIndex(1 if index == 2 else 0)
+        if index == 2 and hasattr(self, 'correction_preview'):
+            # Defer rendering until the stacked page has its final viewport size.
+            QTimer.singleShot(0, self.correction_preview.refresh)
+        elif hasattr(self, 'ref_view'):
             QTimer.singleShot(0, self.ref_view.fit_width)
             QTimer.singleShot(0, self.exam_view.fit_width)
         if hasattr(self, 'results_tabs'):
-            self.results_tabs.setCurrentIndex(1 if index == 2 else 0)
-        if hasattr(self, 'workspace_splitter'):
+            self.results_tabs.setCurrentIndex(0)
+        if index != 2 and hasattr(self, 'workspace_splitter'):
             self._queue_workspace_fit()
         for i,button in enumerate(self.wizard_steps):
             button.setProperty('activeStep',i==index)
@@ -574,6 +596,7 @@ class Window(QMainWindow):
     def reset_comparison(self):
         """Invalidate comparison artifacts whenever inputs or preset change."""
         self.diffs=[];self.reference=[];self.examined=[];self.reference_raw=[]
+        self.has_compared=False
         self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
         self.active_scope=set();self.uncertain=[];self.rule_groups={}
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
@@ -581,7 +604,7 @@ class Window(QMainWindow):
         self.autosave_timer.stop()
         self.list.clear()
         self.detail.setText('Dokumen atau parameter berubah. Jalankan perbandingan baru.')
-        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn):
+        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
 
     def pick(self,side):
@@ -614,7 +637,7 @@ class Window(QMainWindow):
         is_waybill=str(self.rule_mode.currentData()).startswith('waybill')
         self.scope_btn.setEnabled(not is_waybill)
         self.waybill_btn.setEnabled(is_waybill)
-        if is_waybill and self.rule_mode.currentData() in ('waybill_one','waybill_maersk','waybill_meratus','waybill_msc'):
+        if is_waybill:
             # Do not carry a field subset from another shipping-line template.
             selected_profile = self.rule_mode.currentData()
             if getattr(self, '_previous_waybill_preset', None) != selected_profile:
@@ -631,7 +654,7 @@ class Window(QMainWindow):
     def choose_waybill(self):
         dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
         layout=QVBoxLayout(dlg)
-        layout.addWidget(QLabel('Pilih field sesuai template. ONE, MAERSK, MERATUS, dan MSC mendukung variasi layout, dengan lampiran bila tersedia.'))
+        layout.addWidget(QLabel('Pilih field berdasarkan SWB dokumen diperiksa (PDF B).\nDokumen rujukan (PDF A) boleh berupa surat/tabel berbeda layout jika label dan nilainya tersedia.'))
         items=QListWidget()
         for name in profile_field_names(self.rule_mode.currentData()):
             item=QListWidgetItem(name)
@@ -705,10 +728,15 @@ class Window(QMainWindow):
                             pages[i]=loc['hits'][0]['page']
                 self.sort_differences()
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
-                self.populate();self.enable_results();self.show_step(2)
+                self.populate();self.enable_results();self.show_step(1)
                 self.status.setText(f'{self.rule_mode.currentText()} · {len(self.waybill_fields)} field diperiksa · {len(self.diffs)} temuan individual · Stabilo dan filter memakai data temuan yang sama.')
+                if swb_rules.REFERENCE_NEEDS_REVIEW:
+                    unresolved=sorted(set(swb_rules.REFERENCE_NEEDS_REVIEW))
+                    self.status.setText(self.status.text() + f' · {len(unresolved)} field perlu verifikasi')
+                    self.status.setToolTip('Tidak dapat dipastikan dari dokumen berlabel: ' + ', '.join(unresolved))
                 ocr_message='Type3 decoder lokal; tidak membutuhkan OCR'
-                if self.rule_mode.currentData()=='waybill_gsl' and swb_rules.GSL_SKIPPED_FIELDS:
+                if (self.rule_mode.currentData()=='waybill_gsl' and swb_rules.GSL_SKIPPED_FIELDS
+                        and not swb_rules.REFERENCE_NEEDS_REVIEW):
                     self.status.setToolTip('Field GSL belum tervalidasi: ' + ', '.join(swb_rules.GSL_SKIPPED_FIELDS) + '. Field yang tidak dapat didekode perlu diverifikasi manual.')
                     self.status.setText(self.status.text() + f' · {len(swb_rules.GSL_SKIPPED_FIELDS)} field perlu verifikasi')
                 if self.rule_mode.currentData()=='waybill_gsl':
@@ -732,14 +760,15 @@ class Window(QMainWindow):
             refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
             rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
             self.ref_marks=rm;self.exam_marks=em;self.sort_differences()
-            self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate();self.enable_results();self.show_step(2)
+            self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate();self.enable_results();self.show_step(1)
             self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
         except Exception as e:
             self.status.setText('Pemeriksaan gagal — tidak ada hasil baru yang dapat diekspor.')
             QMessageBox.critical(self,'Gagal',str(e))
     def enable_results(self):
+        self.has_compared=True
         self._log_event('comparison_completed', {'findings':len(self.diffs), 'mode':self.rule_mode.currentData()})
-        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn):
+        for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(True)
 
     def _snapshot_stage1(self):
@@ -1126,7 +1155,13 @@ class Window(QMainWindow):
         approved = [(i + 1, d) for i, d in enumerate(self.diffs) if d.apply]
         # Margin-note export needs approved Stage-1 findings with positioned marks.
         approved_ids = {i for i, _ in approved}
-        has_positioned_notes = any(m.get('id') in approved_ids for m in self.exam_marks)
+        review_active = (hasattr(self, 'workspace_pages') and
+                         self.workspace_pages.currentIndex() == 1)
+        include_all_preview_notes = (review_active and hasattr(self, 'correction_preview') and
+                                     self.correction_preview.all_notes.isChecked())
+        available_ids = ({i + 1 for i in range(len(self.diffs))} if include_all_preview_notes
+                         else approved_ids)
+        has_positioned_notes = any(m.get('id') in available_ids for m in self.exam_marks)
         # The 'clean correction' writer additionally requires strict, one-word substitutions.
         def safe_clean(i, diff):
             hits = [m for m in self.exam_marks if m.get('id') == i]
@@ -1146,7 +1181,7 @@ class Window(QMainWindow):
         boxes = []
         for key, label in choices:
             cb = QCheckBox(label)
-            cb.setChecked(key in ('ref', 'exam'))
+            cb.setChecked(key == 'notes' if review_active and has_positioned_notes else key in ('ref', 'exam'))
             if key == 'notes' and not has_positioned_notes:
                 cb.setEnabled(False)
                 cb.setToolTip('Perlu minimal satu temuan Tahap 1 dicentang dan memiliki posisi.')
@@ -1308,8 +1343,8 @@ class Window(QMainWindow):
             if state['pdf'] is not None:
                 state['pdf'].close()
                 state['pdf'] = None
-            # Re-render using the SAME PDF writer as the export, so positions
-            # and line connectors match the actual exported document.
+            # Re-render using the SAME PDF writer as export: numbered
+            # highlights and note cards, without connecting lines.
             self.note_overrides = dict(working)
             with tempfile.TemporaryDirectory(prefix='docmatch_visual_') as td:
                 target = Path(td) / 'preview.pdf'
@@ -1369,7 +1404,7 @@ class Window(QMainWindow):
         def export():
             commit()
             filename, _ = QFileDialog.getSaveFileName(dialog, 'Ekspor PDF hasil edit',
-                'Waybill_Hasil_Koreksi_Catatan.pdf', 'PDF (*.pdf)')
+                correction_pdf_filename(self.exam_path), 'PDF (*.pdf)')
             if not filename:
                 return
             try:
@@ -1487,7 +1522,7 @@ class Window(QMainWindow):
             self.populate()
         def export_notes():
             commit()
-            filename, _ = QFileDialog.getSaveFileName(dialog, 'Ekspor PDF catatan yang diedit', 'Waybill_Hasil_Koreksi_Catatan.pdf', 'PDF (*.pdf)')
+            filename, _ = QFileDialog.getSaveFileName(dialog, 'Ekspor PDF catatan yang diedit', correction_pdf_filename(self.exam_path), 'PDF (*.pdf)')
             if not filename: return
             try:
                 target = Path(filename).with_suffix('.pdf')
@@ -1594,9 +1629,12 @@ class Window(QMainWindow):
                            result.x1 + 1.5, result.y1 + 1.5) & printed
         return result if not result.is_empty else None
 
-    def grouped_correction_notes(self):
+    def grouped_correction_notes(self, include_unchecked=False):
         """One note per PDF page and field, with full GSL reference and change details."""
-        approved = {i + 1: d for i, d in enumerate(self.diffs) if d.apply}
+        # Local import also keeps the isolated method's legacy regression tests
+        # compatible, without adding any dependencies to the old note editor.
+        from reference_note_format import structured_reference_values, is_structured_field
+        approved = {i + 1: d for i, d in enumerate(self.diffs) if d.apply or include_unchecked}
         grouped = {}
         for mark in self.exam_marks:
             n = mark.get('id')
@@ -1606,10 +1644,29 @@ class Window(QMainWindow):
             field = (getattr(d, 'field', '') or 'Lainnya').strip()
             key = (mark['page'], field.casefold())
             item = grouped.setdefault(key, {'page': mark['page'], 'field': field,
-                                            'numbers': [], 'rectangles': []})
+                                            'numbers': [], 'rectangles': [], 'kinds': []})
             if n not in item['numbers']:
                 item['numbers'].append(n)
+            if str(d.kind) not in item['kinds']:
+                item['kinds'].append(str(d.kind))
             item['rectangles'].append(fitz.Rect(mark['rect']))
+        # Catatan untuk Shipper/Consignee/Notify Party wajib mengambil seluruh
+        # isi field dari dokumen A, bukan potongan kata dari hasil diff.
+        # Satu ekstraksi per preview menjaga performa dan huruf/spasi/baris.
+        address_fields = {item['field'] for item in grouped.values()
+                          if is_address_field(item['field'])}
+        address_source = getattr(getattr(self, 'ref_view', None), 'pdf', None)
+        source_path = getattr(address_source, 'name', None) or getattr(self, 'ref_path', None)
+        profile = self.rule_mode.currentData()
+        reference_values = (address_reference_values(source_path, profile, address_fields)
+                            if address_fields else {})
+        # Cargo/weight notes use the same independent PDF A, but keep its
+        # visually aligned rows. No change to the comparison/marker engine.
+        structured_fields = {item['field'] for item in grouped.values()
+                             if is_structured_field(item['field'])}
+        if structured_fields:
+            reference_values.update(structured_reference_values(
+                source_path, profile, structured_fields))
         result = []
         for item in grouped.values():
             item['numbers'].sort()
@@ -1638,9 +1695,18 @@ class Window(QMainWindow):
                         default = ref_text
                 else:
                     default = ('[VERIFIKASI MANUAL DIPERLUKAN: OCR field belum tervalidasi]\n' + default)
+            # Complete source-faithful field text for addresses and cargo,
+            # including original case, line breaks, numbers and units. Never
+            # override individual/manual edits or unverified field extraction.
+            if ((is_address_field(item['field']) or is_structured_field(item['field']))
+                    and item['field'] in reference_values
+                    and not any(n in self.note_overrides for n in item['numbers'])):
+                default = reference_values[item['field']]
             # Group-level user edits take precedence over generated reference text.
             item['text'] = self.note_overrides.get(group_key, default)
-            if self.waybill_mode and self.rule_mode.currentData() == 'waybill_gsl':
+            if (self.waybill_mode and self.rule_mode.currentData() == 'waybill_gsl'
+                    and not is_address_field(item['field'])
+                    and not is_structured_field(item['field'])):
                 item['text'] = re.sub(r'^\s*KOREKSI SESUAI RUJUKAN\s*:\s*\n?', '', item['text'], flags=re.IGNORECASE)
                 item['text'] = re.split(r'\n\s*PENJELASAN PERUBAHAN\s*:', item['text'], maxsplit=1, flags=re.IGNORECASE)[0].strip()
             item['anchor'] = min(item['rectangles'], key=lambda r: (r.y0, r.x0))
@@ -1656,56 +1722,25 @@ class Window(QMainWindow):
             result.append(item)
         return sorted(result, key=lambda item: (item['page'], item['anchor'].y0, item['anchor'].x0))
 
-    def export_waybill_notes_pdf(self, target):
-        """Vector PDF: one correction box and one connector per field per page."""
+    def export_waybill_notes_pdf(self, target, *, include_unchecked=False, allow_empty=False):
+        """Numbered highlights without connector lines; original margin note editors."""
         if not self.exam_view.pdf:
             raise ValueError('PDF dokumen diperiksa belum tersedia.')
-        if not any(d.apply for d in self.diffs):
+        if not allow_empty and not any(d.apply for d in self.diffs) and not include_unchecked:
             raise ValueError('Belum ada temuan yang dipilih.')
-        notes = self.grouped_correction_notes()
-        if not notes:
+        notes = self.grouped_correction_notes(include_unchecked=include_unchecked)
+        if not allow_empty and not notes:
             raise ValueError('Temuan terpilih tidak memiliki posisi stabilo pada PDF diperiksa.')
         source = self.exam_view.pdf
-        margin = 310
-
-        def wrap_note(text, width, fontsize):
-            max_width = width - 15
-            lines = []
-            for paragraph in (text.splitlines() or ['']):
-                words = paragraph.split()
-                if not words:
-                    lines.append('')
-                    continue
-                current = ''
-                for word in words:
-                    candidate = (current + ' ' + word).strip()
-                    if fitz.get_text_length(candidate, fontname='heit', fontsize=fontsize) <= max_width:
-                        current = candidate
-                        continue
-                    if current:
-                        lines.append(current)
-                        current = ''
-                    while word and fitz.get_text_length(word, fontname='heit', fontsize=fontsize) > max_width:
-                        cut = len(word)
-                        while cut > 1 and fitz.get_text_length(word[:cut], fontname='heit', fontsize=fontsize) > max_width:
-                            cut -= 1
-                        lines.append(word[:cut])
-                        word = word[cut:]
-                    current = word
-                if current:
-                    lines.append(current)
-            return lines or ['']
+        margin = NOTE_MARGIN
 
         with fitz.open() as output:
             for pno, original in enumerate(source):
                 bounds = original.rect
-                page_notes = [n for n in notes if n['page'] == pno]
-                measured = []
-                for item in page_notes:
-                    lines = wrap_note(item['text'], margin - 30, 9.5)
-                    height = 31 + len(lines) * 14
-                    measured.append((item, lines, height))
-                page_height = max(bounds.height, 43 + sum(height + 8 for _, _, height in measured) + 18)
+                page_height, measured = note_box_layout(notes, pno,
+                                                         bounds.width, bounds.height,
+                                                         margin=margin)
+                page_notes = [item for item, _, _ in measured]
                 page = output.new_page(width=bounds.width + margin, height=page_height)
                 page.show_pdf_page(fitz.Rect(0, 0, bounds.width, bounds.height), source, pno)
                 # On GSL's first page, changed data is shown by a single
@@ -1718,7 +1753,9 @@ class Window(QMainWindow):
                         if outline is not None:
                             page.draw_rect(outline, color=(0.77, 0.05, 0.14), width=1.8)
                 else:
-                    for mark in (m for m in self.exam_marks if m['page'] == pno):
+                    for mark in (m for m in self.exam_marks
+                                 if m['page'] == pno and m.get('id') in
+                                 {num for item in page_notes for num in item['numbers']}):
                         rect = fitz.Rect(mark['rect'])
                         if rect.is_empty or rect.is_infinite:
                             continue
@@ -1732,21 +1769,31 @@ class Window(QMainWindow):
                         shape.commit(overlay=True)
                 if not measured:
                     continue
-                page.draw_line(fitz.Point(bounds.width + 6, 15),
-                               fitz.Point(bounds.width + 6, page_height - 15),
-                               color=(0.70, 0.70, 0.70), width=0.6)
                 page.insert_text((bounds.width + 17, 26), 'CATATAN KOREKSI',
                                  fontname='hebo', fontsize=10, color=(0.50, 0.05, 0.12))
-                next_y = 43.0
-                for item, lines, height in measured:
-                    x0, top = bounds.width + 14, next_y
-                    rect = fitz.Rect(x0, top, bounds.width + margin - 9, top + height)
+                # Work in source PDF coordinates. Reserve every word/value
+                # and all highlighted regions before placing any numbered badge.
+                # This avoids a marker for Quantity covering Cargo or a Seal.
+                text_boxes = [fitz.Rect(w[:4]) for w in original.get_text('words')]
+                protected = [fitz.Rect(m['rect']) for m in self.exam_marks
+                             if m['page'] == pno and m.get('id') in
+                             {number for item in page_notes for number in item['numbers']}]
+                protected += [fitz.Rect(item['outline']) for item in page_notes
+                              if item.get('outline') is not None]
+                placed_badges = []
+                # A raster-only/Type3 form might have no usable word layer.
+                # Check ink on the *original* page in that case to avoid
+                # obscuring characters that exist only as page graphics.
+                ink_guard = scan_ink_guard(original) if (gsl_first or not text_boxes) else None
+                for item, lines, rect in measured:
+                    x0, top = rect.x0, rect.y0
                     page.draw_rect(rect, color=(0.72, 0.52, 0.54),
                                    fill=(1, 0.98, 0.96), width=0.6)
                     numbers = item['numbers']
                     label = (f'#{numbers[0]:02d}' if len(numbers) == 1 else
                              f'#{numbers[0]:02d}-#{numbers[-1]:02d}')
-                    header = f'{label}  Perubahan - {item["field"]}'
+                    status = ' / '.join(item.get('kinds', ['Perubahan']))
+                    header = f'{label}  {status} - {item["field"]}'
                     # Shorten only the header if needed, never the correction itself.
                     while (len(header) > 1 and
                            fitz.get_text_length(header, fontname='hebo', fontsize=8) > rect.width - 12):
@@ -1758,11 +1805,16 @@ class Window(QMainWindow):
                                            fontsize=9.5, lineheight=1.18,
                                            color=(0.35, 0.06, 0.13)) < 0:
                         raise ValueError(f'Catatan field {item["field"]} tidak muat.')
-                    anchor = item['anchor']
-                    page.draw_line(fitz.Point(anchor.x1, (anchor.y0 + anchor.y1) / 2),
-                                   fitz.Point(x0, top + 9),
-                                   color=(0.55, 0.15, 0.20), width=0.65)
-                    next_y = top + height + 8
+                    # A compact matching badge sits beside the highlighted PDF value.
+                    # Do not draw leader/connector lines; they become unreadable
+                    # when a document has many corrections.
+                    anchor = item.get('outline', item['anchor'])
+                    draw_number_marker(page, anchor, item['numbers'],
+                                       bounds.width, bounds.height,
+                                       text_boxes=text_boxes,
+                                       occupied=placed_badges,
+                                       protected=protected,
+                                       ink_guard=ink_guard)
             meta = dict(output.metadata or {})
             meta['subject'] = ('DocMatch - PDF diperiksa dengan catatan per field; '
                                'teks asli tidak diubah')
@@ -1939,7 +1991,12 @@ class Window(QMainWindow):
                 'ref': ('Waybill_Rujukan_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'ref')),
                 'exam': ('Waybill_Diperiksa_Beranotasi.pdf', lambda path: self.export_waybill_pdf(path, 'exam')),
                 'corrected': ('Waybill_Hasil_Koreksi_Bersih.pdf', self.export_waybill_corrected_pdf),
-                'notes': ('Waybill_Hasil_Koreksi_Catatan.pdf', self.export_waybill_notes_pdf),
+                'notes': (correction_pdf_filename(self.exam_path),
+                          lambda path: self.export_waybill_notes_pdf(
+                              path, include_unchecked=(
+                                  hasattr(self, 'workspace_pages') and
+                                  self.workspace_pages.currentIndex() == 1 and
+                                  self.correction_preview.all_notes.isChecked()))),
             }
             is_zip = len(selected) > 1
             default = 'DocMatch_Hasil_PDF.zip' if is_zip else outputs[selected[0]][0]
@@ -2105,7 +2162,7 @@ class Window(QMainWindow):
             self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
             self.ref_view.set_zoom(view.get('ref_zoom',1.15));self.exam_view.set_zoom(view.get('exam_zoom',1.15))
             self.ref_view.goto(view.get('ref_page',0));self.exam_view.goto(view.get('exam_page',0))
-            self.populate();self.enable_results();self._refresh_export_annotations();self._refresh_main_annotation_previews();self.show_step(2)
+            self.populate();self.enable_results();self._refresh_export_annotations();self._refresh_main_annotation_previews();self.show_step(1)
             self.status.setText(f'Sesi dipulihkan • {len(self.diffs)} temuan • {len(self.hybrid_stage2_records)} validasi Tahap 2')
         finally:
             self._restoring_session=False

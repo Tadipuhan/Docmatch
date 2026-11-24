@@ -1,102 +1,330 @@
-"""Conservative, offline recovery of GSL Type3 PDF text using glyph outlines.
+"""Pemulihan teks Type3 GSL secara OFFLINE, berbasis outline glyph (tanpa OCR).
 
-No OCR. Only previously verified glyph outlines are decoded; unknown glyphs
-cause a field-level failure rather than fabricated text.
+v1.8.30 - perubahan dari v1.8.29:
+  * Spasi ditentukan dari glyph KOSONG (.notdef / tanpa operator path), bukan dari
+    nomor kode yang di-hardcode. Pada v1.8.29 kode 3 dipaksa menjadi spasi pada
+    halaman 3, padahal pada GSL_SWB_26B92KR1C kode 3 adalah huruf "A".
+  * Tabel hash glyph dipindah ke gsl_glyph_table.py (92 entri, termasuk "(", ")",
+    ":", huruf kecil, dan font reguler yang dipakai Attached List).
+  * Glyph yang tidak dikenal TIDAK ditebak: menjadi U+FFFD, dicatat di
+    UNKNOWN_GLYPHS, dan field terkait gagal-aman (UnrecoverableGSLText).
+  * Jika dua font Type3 pada satu halaman memberi karakter berbeda untuk kode yang
+    sama, kode itu dianggap ambigu (U+FFFD), tidak ditimpa diam-diam.
+  * Kotak kata memakai tinggi huruf nyata. FontBBox Type3 GSL ([0 0 1 -1]) membuat
+    bbox bawaan ~2,6x terlalu tinggi dan titik tengahnya bergeser.
+
+Fungsi murni (glyph_is_blank, build_charmap, merge_charmaps, parse_differences,
+parse_charprocs, tight_char_rect) tidak memerlukan PyMuPDF dan diuji di tests/.
 """
 from __future__ import annotations
 import hashlib
+import os
 import re
-from pathlib import Path
-import pymupdf as fitz
+try:
+    import pymupdf as fitz
+except ImportError:          # fungsi murni tetap dapat diuji tanpa PyMuPDF
+    fitz = None
 
-# Character codes were manually transcribed against the supplied GSL sample.
-# Do not extrapolate numeric codes to other PDFs: match Type3 glyph outlines.
-_SEED = {
- 0:'S',1:'I',2:'N',3:'G',4:'A',5:'P',6:'O',7:'R',8:'E',9:'J',
- 10:'K',11:'T',12:' ',13:':',14:'?',15:'2',16:'4',17:'?',18:'0',19:'?',
- 20:'?',21:'?',22:'?',23:'C',24:'.',25:',',26:'L',27:'D',28:'?',29:'B',30:'U',
- 31:'?',32:'?',33:'5',34:'3',35:'Y',36:'8',37:'?',38:'?',39:'1',40:'?',41:'W',42:'?',43:'?',44:'?',45:'?',46:'?',47:'?',48:'?',49:'?',50:'?',51:'?',52:'?',53:'?',54:'?',55:'?',56:'?',57:'?',58:'?',59:'?'
-}
-# Override via unambiguous visible words on page 1: PT. BRIDGESTONE TIRE INDONESIA,
-# KAWASAN INDUSTRI SURYACIPTA, GOSUJKT8132504.
-_SEED.update({0:'S',1:'I',2:'N',3:'G',4:'A',5:'P',6:'O',7:'R',8:'E',9:'J',10:'K',11:'T',12:' ',
-  15:'2',16:'4',18:'0',23:'C',24:'.',25:',',26:'L',27:'D',29:'B',30:'U',
-  33:'5',34:'3',35:'Y',36:'8',39:'1',41:'W'})
-# Above indices are character codes, NOT glyph order; only validated entries used.
+from gsl_glyph_table import GLYPHS
+
+TRUSTED_GLYPHS = GLYPHS          # nama lama dipertahankan untuk kompatibilitas
+REPLACEMENT = '\ufffd'
+CAP_HEIGHT = 0.76                # tinggi huruf kapital relatif ukuran font
+DESCENT = 0.22                   # turun di bawah baseline (g, p, y, koma)
+UNKNOWN_GLYPHS = {}              # sha256 -> {'codes': set[int], 'count': int}
+RUN_GAP_FACTOR = 0.9             # celah horizontal > 0,9 x ukuran font = rangkaian teks baru
+
 
 class UnrecoverableGSLText(ValueError):
     pass
 
-def _font_hashes(doc, xref):
-    obj=doc.xref_object(xref)
-    found={}
-    for code, glyphxref in re.findall(r'/([0-9]+)\s+(\d+)\s+0\s+R',obj):
-        try:
-            raw=doc.xref_stream(int(glyphxref))
-            found[int(code)]=hashlib.sha256(raw).hexdigest()
-        except Exception:continue
-    return found
 
-def _trusted_glyphs():
-    # This map is constructed from the user-provided sample at runtime on build
-    # if available, otherwise embedded below in the generated package.
-    return TRUSTED_GLYPHS
+# ----------------------------------------------------------------------------
+# Fungsi murni
+# ----------------------------------------------------------------------------
+_PATH_OPS = {'m', 'l', 'c', 'v', 'y', 're'}
+_RASTER_OPS = {'BI', 'ID', 'Do', 'sh'}
 
-TRUSTED_GLYPHS = {'ec1532c10e2d9dbbb452a0b1c0f46ab66e12da6dd2264d1686f2306cbc5fbd88': 'S', '6acedba7edbdb3fabe34cbaf827fc2fff96541444afcf036914afcb990454f2d': 'I', '49d4067635528ca4ff585a09c1bf9fa9c90bad84a9fe7a2c82e0e2684902eee1': 'N', '5010825c7490142f75bc9be0dbd8f462f3d50feb380dfd9bb27c91bf369cb50a': 'G', '13096c7a17ae6969d45a0d9232d2b424dc7d558826c7de7a299ec7fe1ec0a248': 'A', '57a86fd375102eb6b595ac5f6e26af1258ff618eb425b424a4432e8d38f73779': 'P', 'dedc4e3c6d35d409be8928fecc853f2e25db75e1d9aab78b0d07589cc2a430d8': 'O', '277897d6c2bec57785230047c5e15bc9eb423a0035723107f0e1b1109474e3fc': 'R', 'd832d6d33e979387361613e2488a1f26dae1efa643b8c039dab66c467f7b166d': 'E', '74dfb0fad927cdd1da59588e048171349ea4fd64b4651367e25299d2a0062c2d': 'J', '28fa3d41789b46cdc675f864e29c280b08eb93b36d50cafa225516d78e91413c': 'K', '1acc58b044e16805129e20bcf9afc03ee3b3302cfca60aa3e198c5ab71486f31': 'T', '4f38fce58729bf2081ef3904ea0afe2f1d2078091646ef6b42ffa2a3e253fb10': '2', 'd7f433ae288200e0ede91e30dd84a06c3dc2a99c8e9e9bdce7be65ac9a622cd3': '4', '3c4a4f0f30b77ce67cada389dcd952d78c9092427f47cbbb7e55d77e91c476a0': '/', '2dd63bd76b70f4afbe9d12e16918fd560ad9f5c2313fb9ff4522a27f7bd01ba1': '0', '17fedd9c06a92ec90643ae68288f7007f0a3063784369a4eb511cc397053ec0c': '9', '63f129fefca6953bc84c90d7d66a9ff7a1b592f1d223889f9ac3babb8fbf3c2d': '6', 'ab3e508d55df4a3f5de671be9cfe78ce62c8e78ac6ea101ab5e1d857c5a27a01': 'H', 'c5fc8bea0810830970fb8c856eb567f766dd676ab589f8f3541c4efe5250aa28': 'X', 'b71ed9413228a485b29a7b1c50863fa556f60abc2949ab6bd3683cfc8bd7fdfc': 'C', '28c57a7a0d9f69d15b7ff9d9ec4cdce81e1414c02dab0c1a4a1e55b68a8b66fd': '.', 'f7c0ab090a392a386443ef404f1cca3f5d8ae44243ca287755055c77f71b3fcf': ',', 'f018f2419facc036ee347b909a444da874cd3d0fa56f07a8994473a799869e55': 'L', 'abc49a56f2c834a56979d400e90e429929aa51cbd200fe10979ccbb412402344': 'D', 'b5b04fd918d75c37f415728273822f8b37540876838db9e2f0ed23c66593581e': 'B', 'dc20707cec94f6673abd0317353c47b4a39faf84b0cae4fe5e1ef26edc85f437': 'U', 'f1d864c99f307d66efa23f0891a74f378293d60dcc4cf565f719a9f2b24c1193': 'M', 'df185df62258f086e1ae5c19f72d47f992eb88f04f28fe3dfe570ca1ad1ef26c': '5', '52154c8ef45460120939669d83c6268d7240ac546cb776f9967db415ef7ad8fe': '3', '1e486d26eddf4c96d7d0538864c4a16495e2004bde6d037b82be70215bf7d19a': 'Y', '0d26b047a74c6be888bd51255273d9a38eb7d9abd8bff5031eeaf54b7aec3bb8': '8', '569038015f6e3ba738ecfd308d5910c6c4019aac225ae87447a1c9222c84b6ae': '-', '2a69a775b469ab8d0805220984941b4101ad2dc59857e1f3028469b337d10dcf': '1', 'c3a0f33890445b21007ba6c7c37fb1a458774365ee3a352e22eb3abe883015b1': 'F', '0be73ff0e9252c96f0985b3ab23dade53134d0097258863773c3bc7657541fe1': 'W', '347d49370b64dfc72a1b2e932118f4336c56cc3530344f5a9c37dc1bb80a19b0': 'L', '79006c3f9f2c60656b1ffc6cab867351db12d8b56403e1118e98deeb6cad71b7': 'V', '13e0bd16f30075b31bac47be424af9240bf7307deb9c5952a997c7c2094027c3': '*'}
 
-def recover_page_words(doc, page_number):
-    page=doc[page_number]
-    fonts=page.get_fonts()
-    if not fonts:
-        return []
-    charmap={}
-    for f in fonts:
-        if f[2]!='Type3':
+def glyph_hash(stream: bytes) -> str:
+    return hashlib.sha256(stream).hexdigest()
+
+
+def glyph_is_blank(stream: bytes) -> bool:
+    """True bila glyph tidak menggambar apa pun (spasi / .notdef).
+
+    Glyph yang berisi gambar mentah (BI/Do/sh) BUKAN blank: ia tak dikenal.
+    """
+    tokens = stream.split()
+    ops = {t.decode('latin-1') for t in tokens}
+    if ops & _RASTER_OPS:
+        return False
+    return not (ops & _PATH_OPS)
+
+
+def build_charmap(code_streams, table=None, report=None):
+    """{kode: stream glyph} -> {kode: karakter}.
+
+    report (dict) diisi {hash: {'codes': set, 'count': n}} untuk glyph tak dikenal.
+    """
+    table = GLYPHS if table is None else table
+    charmap = {}
+    for code, stream in code_streams.items():
+        if glyph_is_blank(stream):
+            charmap[code] = ' '
             continue
-        for code,digest in _font_hashes(doc,f[0]).items():
-            if digest in TRUSTED_GLYPHS:
-                charmap[code]=TRUSTED_GLYPHS[digest]
-    # The producer uses code 12 as a blank via /.notdef.
-    # Type3 character code 3 is a word separator in the supplied GSL PDFs.
-    # Code 12 is a genuine 'R' glyph on page 3 and must not be overwritten.
-    if page_number == 2:
-        charmap[3] = ' '
-    if page_number == 2 and charmap.get(25) is None:
-        charmap[25] = ':'
-    if page_number == 0 and charmap.get(12) is None:
-        charmap[12] = ' '
-    if len(charmap)==1:
-        raise UnrecoverableGSLText('Tidak ada pemetaan glyph Type3 yang tervalidasi pada halaman '+str(page_number+1))
-    output=[]
-    for block in page.get_text('rawdict')['blocks']:
-        if 'lines' not in block:continue
-        for line in block['lines']:
-            pending=[]
-            def flush():
-                if not pending:return
-                r=fitz.Rect(pending[0][1])
-                for _,bbox in pending[1:]:r |= fitz.Rect(bbox)
-                output.append({'word':''.join(t for t,_ in pending),'rect':r,'page':page_number})
-                pending.clear()
+        digest = glyph_hash(stream)
+        char = table.get(digest)
+        if char is None:
+            charmap[code] = REPLACEMENT
+            if report is not None:
+                entry = report.setdefault(digest, {'codes': set(), 'count': 0})
+                entry['codes'].add(code)
+                entry['count'] += 1
+        else:
+            charmap[code] = char
+    return charmap
+
+
+def merge_charmaps(maps):
+    """Gabungkan peta beberapa font; kode yang bertentangan menjadi ambigu."""
+    merged = {}
+    for charmap in maps:
+        for code, char in charmap.items():
+            if code in merged and merged[code] != char:
+                merged[code] = REPLACEMENT
+            else:
+                merged.setdefault(code, char)
+    return merged
+
+
+_NAME_OR_INT = re.compile(r'/[^\s/<>\[\]()]+|\d+')
+
+
+def parse_differences(text):
+    """'[0 /0 /1 /.notdef 12 /g12]' -> {0:'0', 1:'1', 2:'.notdef', 12:'g12'}."""
+    mapping, code = {}, None
+    inner = text[text.find('[') + 1: text.rfind(']')] if '[' in text else text
+    for token in _NAME_OR_INT.findall(inner):
+        if token.startswith('/'):
+            if code is not None:
+                mapping[code] = token[1:]
+                code += 1
+        else:
+            code = int(token)
+    return mapping
+
+
+_CHARPROC_ENTRY = re.compile(r'/([^\s/<>\[\]()]+)\s+(\d+)\s+0\s+R')
+
+
+def parse_charprocs(text):
+    """'<</47 12 0 R/.notdef 9 0 R>>' -> {'47': 12, '.notdef': 9}."""
+    return {name: int(xref) for name, xref in _CHARPROC_ENTRY.findall(text)}
+
+
+def tight_char_rect(bbox, origin, size, force=False):
+    """Kotak karakter yang menempel pada tinggi huruf nyata.
+
+    Font Type3 GSL memakai FontBBox [0 0 1 -1], sehingga PyMuPDF menghasilkan kotak yang
+    membentang dari baseline KE BAWAH sejauh satu em (tinggi = 1,0 x ukuran), bukan di
+    atas huruf. Karena tingginya "tampak normal", kotak itu tidak bisa dikenali dari
+    ukurannya; untuk teks Type3 pakai force=True agar y selalu dihitung dari baseline.
+    Tanpa force, kotak yang wajar (<= 1,35 x ukuran) dikembalikan apa adanya.
+    x0/x1 tetap dari bbox bawaan (lebar maju karakter).
+    """
+    x0, y0, x1, y1 = bbox
+    if not size or size <= 0 or origin is None:
+        return (x0, y0, x1, y1)
+    if not force and (y1 - y0) <= 1.35 * size:
+        return (x0, y0, x1, y1)
+    baseline = origin[1]
+    return (x0, baseline - CAP_HEIGHT * size, x1, baseline + DESCENT * size)
+
+
+def char_geometry_sample(doc, page_number, limit=40):
+    """Diagnostik: bbox/origin/size mentah dari PyMuPDF dan kotak hasil koreksi.
+
+    Dipakai dump_geometry.py bila kotak penanda masih meleset.
+    """
+    out = []
+    for block in doc[page_number].get_text('rawdict')['blocks']:
+        for line in block.get('lines', []):
             for span in line['spans']:
                 for ch in span['chars']:
-                    raw=ch['c']
-                    decoded=''.join(charmap.get(ord(c),'�') if ord(c)<128 else c for c in raw)
-                    if decoded.isspace():flush()
-                    else:pending.append((decoded,ch['bbox']))
+                    if len(out) >= limit:
+                        return out
+                    box = tight_char_rect(ch['bbox'], ch.get('origin'), span.get('size', 0), force=True)
+                    out.append({'code': ord(ch['c']), 'font': span.get('font'), 'size': span.get('size'),
+                                'origin': list(ch.get('origin') or []), 'bbox_pymupdf': [round(v, 2) for v in ch['bbox']],
+                                'bbox_corrected': [round(v, 2) for v in box]})
+    return out
+
+
+def starts_new_run(prev_x1, next_x0, size, factor=RUN_GAP_FACTOR):
+    """True bila celah horizontal antar-karakter cukup besar untuk dua rangkaian teks."""
+    return bool(size) and (next_x0 - prev_x1) > factor * size
+
+
+def assign_run_anchors(words, size, factor=RUN_GAP_FACTOR):
+    """Beri tiap kata 'anchor' = titik tengah KATA PERTAMA dari rangkaian teksnya.
+
+    Rangkaian teks (run) = kata-kata berurutan pada satu baris tanpa celah besar.
+    Sebuah sel memiliki seluruh run bila anchor-nya berada di dalam sel. Pada PDF GSL,
+    nilai panjang (mis. "CAT LAI TERMINAL - HO CHI MINH CITY") melewati garis kotak
+    sedangkan tampilan visualnya dipotong gambar latar; kepemilikan per-titik-tengah-kata
+    memecahnya ke kotak tetangga.
+    words: daftar dict dengan 'rect' (iterable x0,y0,x1,y1), urutan baca satu baris.
+    """
+    anchor, prev_x1 = None, None
+    for word in words:
+        x0, y0, x1, y1 = tuple(word['rect'])
+        if anchor is None or starts_new_run(prev_x1, x0, size, factor):
+            anchor = ((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+        word['anchor'] = anchor
+        prev_x1 = x1
+    return words
+
+
+# ----------------------------------------------------------------------------
+# Integrasi PyMuPDF (belum diuji di lingkungan audit: PyMuPDF tidak tersedia)
+# ----------------------------------------------------------------------------
+def read_type3_font(doc, font_xref):
+    """Kembalikan {kode: stream outline} untuk satu font Type3."""
+    code_to_name, procs = {}, {}
+    try:
+        kind, value = doc.xref_get_key(font_xref, 'Encoding')
+        if kind == 'xref':
+            enc = int(value.split()[0])
+            _, diff = doc.xref_get_key(enc, 'Differences')
+            code_to_name = parse_differences(diff)
+        elif kind == 'dict':
+            code_to_name = parse_differences(value)
+    except (RuntimeError, ValueError, IndexError):
+        code_to_name = {}
+    try:
+        kind, value = doc.xref_get_key(font_xref, 'CharProcs')
+        if kind == 'xref':
+            procs = parse_charprocs(doc.xref_object(int(value.split()[0])))
+        elif kind == 'dict':
+            procs = parse_charprocs(value)
+    except (RuntimeError, ValueError, IndexError):
+        procs = {}
+    if not procs:                       # cadangan: perilaku v1.8.29 (nama == kode)
+        procs = parse_charprocs(doc.xref_object(font_xref))
+    if not code_to_name:
+        code_to_name = {int(n): n for n in procs if n.isdigit()}
+    streams = {}
+    for code, name in code_to_name.items():
+        if name in procs:
+            try:
+                streams[code] = doc.xref_stream(procs[name]) or b''
+            except (RuntimeError, ValueError):
+                continue
+    return streams
+
+
+_PAGE_CACHE = {}
+
+
+def _cache_key(doc, page_number):
+    name = getattr(doc, 'name', '') or ''
+    if not name or not os.path.isfile(name):
+        return None
+    stat = os.stat(name)
+    return (name, stat.st_mtime_ns, stat.st_size, page_number)
+
+
+def page_charmap(doc, page_number):
+    page = doc[page_number]
+    maps = []
+    for font in page.get_fonts():
+        if font[2] != 'Type3':
+            continue
+        maps.append(build_charmap(read_type3_font(doc, font[0]), report=UNKNOWN_GLYPHS))
+    return merge_charmaps(maps)
+
+
+def recover_page_words(doc, page_number):
+    key = _cache_key(doc, page_number)
+    if key is not None and key in _PAGE_CACHE:
+        return [dict(w) for w in _PAGE_CACHE[key]]
+    page = doc[page_number]
+    if not any(f[2] == 'Type3' for f in page.get_fonts()):
+        return []
+    charmap = page_charmap(doc, page_number)
+    if not any(ch not in (' ', REPLACEMENT) for ch in charmap.values()):
+        raise UnrecoverableGSLText(
+            'Tidak ada pemetaan glyph Type3 yang tervalidasi pada halaman ' + str(page_number + 1))
+    output = []
+    for block in page.get_text('rawdict')['blocks']:
+        if 'lines' not in block:
+            continue
+        for line in block['lines']:
+            pending = []
+            line_start = len(output)
+            line_size = 0
+
+            def flush():
+                if not pending:
+                    return
+                rect = fitz.Rect(pending[0][1])
+                for _, box in pending[1:]:
+                    rect |= fitz.Rect(box)
+                output.append({'word': ''.join(t for t, _ in pending), 'rect': rect,
+                               'page': page_number})
+                pending.clear()
+
+            for span in line['spans']:
+                size = span.get('size', 0)
+                line_size = max(line_size, size)
+                for ch in span['chars']:
+                    code = ord(ch['c'])
+                    decoded = charmap.get(code, REPLACEMENT if code < 256 else ch['c'])
+                    if decoded.isspace():
+                        flush()
+                    else:
+                        box = tight_char_rect(ch['bbox'], ch.get('origin'), size, force=True)
+                        if pending and starts_new_run(pending[-1][1][2], box[0], size):
+                            flush()          # dua rangkaian teks tanpa spasi di antaranya
+                        pending.append((decoded, box))
             flush()
+            assign_run_anchors(output[line_start:], line_size)
+    if key is not None:
+        if len(_PAGE_CACHE) >= 32:
+            _PAGE_CACHE.clear()
+        _PAGE_CACHE[key] = [dict(w) for w in output]
     return output
 
+
+def word_anchor(word):
+    """Titik penentu kepemilikan sel: anchor rangkaian teks (bila ada), jika tidak titik tengah kata."""
+    anchor = word.get('anchor')
+    if anchor is not None:
+        return fitz.Point(anchor[0], anchor[1])
+    r = fitz.Rect(word['rect'])
+    return (r.tl + r.br) * 0.5
+
+
+def unknown_glyph_report():
+    """Daftar glyph tak dikenal sejak aplikasi dibuka (untuk diberi label)."""
+    return {h: {'codes': sorted(v['codes']), 'count': v['count']}
+            for h, v in UNKNOWN_GLYPHS.items()}
+
+
 def recover_gsl_field(doc, name, regions, rect_function):
-    words=[]
-    for page_number,*bounds in regions:
-        if page_number>=len(doc):
-            raise UnrecoverableGSLText('Field '+name+': halaman PDF '+str(page_number+1)+' tidak tersedia')
-        clip=rect_function(doc[page_number],bounds)
-        for w in recover_page_words(doc,page_number):
-            if clip.contains(fitz.Rect(w['rect']).tl + (fitz.Rect(w['rect']).br - fitz.Rect(w['rect']).tl)*0.5):words.append(w)
+    words = []
+    for page_number, *bounds in regions:
+        if page_number >= len(doc):
+            raise UnrecoverableGSLText('Field ' + name + ': halaman PDF ' + str(page_number + 1) + ' tidak tersedia')
+        clip = rect_function(doc[page_number], bounds)
+        for w in recover_page_words(doc, page_number):
+            if clip.contains(word_anchor(w)):
+                words.append(w)
     if not words:
-        raise UnrecoverableGSLText('Field '+name+': tidak ada teks terverifikasi pada area halaman '+', '.join(str(r[0]+1) for r in regions))
-    if any('�' in w['word'] for w in words):
-        raise UnrecoverableGSLText('Field '+name+': terdapat glyph yang belum dapat dipulihkan secara pasti. Tidak dilakukan perbandingan otomatis.')
-    return {'text':' '.join(w['word'] for w in words),'words':words}
+        raise UnrecoverableGSLText('Field ' + name + ': tidak ada teks terverifikasi pada area halaman '
+                                   + ', '.join(str(r[0] + 1) for r in regions))
+    if any(REPLACEMENT in w['word'] for w in words):
+        raise UnrecoverableGSLText('Field ' + name + ': terdapat glyph yang belum dapat dipulihkan secara pasti. '
+                                   'Tidak dilakukan perbandingan otomatis.')
+    return {'text': ' '.join(w['word'] for w in words), 'words': words}

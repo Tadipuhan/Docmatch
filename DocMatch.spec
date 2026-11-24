@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('assets', 'assets')]
 binaries = []
-hiddenimports = ['legacy_v01', 'rules', 'waybill_rules', 'editor']
+hiddenimports = ['legacy_v01', 'rules', 'waybill_rules', 'gsl_font_recovery', 'gsl_ocr', 'editor', 'hybrid_validation', 'flexible_reference', 'textnorm', 'gsl_layout', 'gsl_glyph_table', 'region_guard', 'region_ocr_recovery', 'anl_form', 'anl_semantics', 'session_store', 'template_manager', 'correction_note_layout', 'correction_markers', 'correction_preview', 'reference_note_format']
 tmp_ret = collect_all('pymupdf')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 

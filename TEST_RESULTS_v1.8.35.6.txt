@@ -1,0 +1,14 @@
+DocMatch v1.8.35.6 — Test Summary
+2026-11-24
+
+Full test suite: 103 passed, 59 skipped, 1 failed.
+Failure: tests/test_meratus_reference_detection.py::test_letter_that_mentions_meratus_is_still_a_flexible_reference
+This failure also occurred in v1.8.35.5 prior to this release; the present patch leaves flexible_reference.py unchanged.
+
+Targeted tests: formatting, grouping, manual override, and PDF export passed.
+New check covers ONE, MSC, Meratus data when their PDFs are available in the test workspace.
+Python module syntax: passed.
+GUI Windows: not tested (PySide6 is not installed in this build/test environment).
+
+Update scope: docmatch.py and reference_note_format.py only for application behavior.
+Other shipping-line extraction rules and matching engine are unchanged.

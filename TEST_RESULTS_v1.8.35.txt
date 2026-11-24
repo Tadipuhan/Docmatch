@@ -1,0 +1,6 @@
+Regression suite v1.8.35 (Linux, without PySide6)
+1 failed, 73 passed, 59 skipped in 4.10s
+Regression comparison: the Meratus synthetic flexible-reference test also fails
+in the untouched v1.8.34 source. No carrier parser changes were made.
+New marker, writer, navigation, and geometry tests: 13 passed.
+Windows GUI and portable .exe runtime were not executed.

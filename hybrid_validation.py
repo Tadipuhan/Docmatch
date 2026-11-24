@@ -5,6 +5,8 @@ import threading
 import re
 from region_ocr_recovery import text_quality, read_region_candidates
 from gsl_ocr import OCRError
+from textnorm import normalize_text
+from region_guard import check_ocr_relevance
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,13 +34,61 @@ def _rect_json(rect):
     return [round(float(v), 3) for v in tuple(rect)]
 
 
+def _native_by_field(doc, page_no):
+    """Teks Type3 terdekode per kotak GSL halaman ini (untuk validasi relevansi OCR)."""
+    try:
+        from gsl_layout import boxes_for_page
+        from gsl_font_recovery import recover_page_words, word_anchor
+        if page_no != 0:
+            return {}
+        page = doc[page_no]
+        words = recover_page_words(doc, page_no)
+        boxes, _ = boxes_for_page(page)
+    except Exception:
+        return {}
+    r = page.rect
+    out = {}
+    for name, (x0, y0, x1, y1) in boxes.items():
+        cell = fitz.Rect(r.x0 + x0 * r.width, r.y0 + y0 * r.height,
+                         r.x0 + x1 * r.width, r.y0 + y1 * r.height)
+        out[name] = ' '.join(w['word'] for w in words if cell.contains(word_anchor(w)))
+    return out
+
+
+def _ocr_rect(page, region, field, profile):
+    """Kotak OCR otomatis: lewati caption cetak di bagian atas kotak GSL."""
+    if profile != 'waybill_gsl':
+        return region
+    if getattr(page.parent, 'name', None):
+        from flexible_reference import detect_flexible_pdf
+        if detect_flexible_pdf(page.parent.name):
+            return region
+    try:
+        from gsl_layout import GSL_BOXES, inset_for_ocr
+        if field not in GSL_BOXES or page.number != 0:
+            return region
+        r = page.rect
+        x0, y0, x1, y1 = inset_for_ocr(field, GSL_BOXES[field])
+        inner = fitz.Rect(r.x0 + x0 * r.width, r.y0 + y0 * r.height,
+                          r.x0 + x1 * r.width, r.y0 + y1 * r.height) & fitz.Rect(region)
+        return inner if inner.width > 4 and inner.height > 3 else region
+    except Exception:
+        return region
+
+
 def extract_region(page, rect, profile=''):
     """Return extractable text and token boxes; don't invent content for scans."""
     clip = fitz.Rect(rect) & page.rect
     if clip.is_empty or clip.width < 2 or clip.height < 2:
         return {'text': '', 'boxes': [], 'source': 'empty', 'readable': False}
     words = []
-    if profile == 'waybill_gsl':
+    # The selected GSL profile describes the comparison schema, not necessarily
+    # the font/layout of this specific PDF. Reference letters use native text.
+    flexible = False
+    if profile == 'waybill_gsl' and getattr(page.parent,'name',None):
+        from flexible_reference import detect_flexible_pdf
+        flexible = detect_flexible_pdf(page.parent.name)
+    if profile == 'waybill_gsl' and not flexible:
         from gsl_font_recovery import recover_page_words
         try:
             words = [
@@ -55,10 +105,14 @@ def extract_region(page, rect, profile=''):
             for w in page.get_text('words', clip=clip, sort=True)
             if str(w[4]).strip()
         ]
+        if profile in ('waybill', 'waybill_anl'):
+            # v1.8.33.2: kata dimiliki kotak bila titik tengahnya di dalam kotak (bukan sekadar
+            # bersinggungan), agar kata field tetangga tidak ikut terbaca.
+            words = [w for w in words if clip.contains((w['rect'].tl + w['rect'].br) * 0.5)]
     text = ' '.join(w['text'] for w in words)
     readable = not text_quality(text)['suspicious']
     return {'text': text, 'boxes': [_rect_json(w['rect']) for w in words],
-            'source': 'Type3' if profile == 'waybill_gsl' else 'PDF text layer',
+            'source': 'Type3' if profile == 'waybill_gsl' and not flexible else 'PDF text layer',
             'readable': readable, 'quality': text_quality(text)}
 
 
@@ -109,6 +163,21 @@ def preset_candidates(doc, field, profile):
 
 def find_candidates(doc, field, text, profile):
     """Conservative candidate retrieval: field layout + text search, not copied coordinates."""
+    if profile == 'waybill_gsl' and getattr(doc, 'name', None):
+        from flexible_reference import detect_flexible_pdf, extract_flexible
+        if detect_flexible_pdf(doc.name):
+            info = extract_flexible(doc.name, [field])[field]
+            if info.get('valid') and info['words']:
+                page_no = info['words'][0]['page']
+                boxes = [fitz.Rect(w['rect']) for w in info['words'] if w['page'] == page_no]
+                union = fitz.Rect(boxes[0])
+                for box in boxes[1:]: union |= box
+                area = (union + (-2,-2,2,2)) & doc[page_no].rect
+                value = extract_region(doc[page_no], area, profile)
+                # This is label-based; do not run original GSL template locators.
+                return [{'page':page_no,'rect':area,'reason':'field label (flexible reference)',
+                         'score':.95,'extraction':value}]
+            return []
     results = []
     for page_no, rect in preset_candidates(doc, field, profile):
         value = extract_region(doc[page_no], rect, profile)
@@ -179,7 +248,8 @@ class AutoLocateTask(QRunnable):
                     # when empty, corrupt or clearly uncertain. Both PDFs are processed.
                     # Never promote OCR output without a user's confirmation.
                     try:
-                        data['ocr'] = read_region_candidates(doc[best['page']], region,
+                        ocr_box = _ocr_rect(doc[best['page']], region, self.field, self.profile)
+                        data['ocr'] = read_region_candidates(doc[best['page']], ocr_box,
                                                            modes=(6,), variants=('grayscale',))
                         first = data['ocr'][0] if data['ocr'] else None
                         fallback = (not first or not first.get('text', '').strip()
@@ -188,7 +258,7 @@ class AutoLocateTask(QRunnable):
                                     or text_quality(native.get('text', ''))['suspicious'])
                         if fallback:
                             data['ocr_fallback_used'] = True
-                            more = read_region_candidates(doc[best['page']], region,
+                            more = read_region_candidates(doc[best['page']], ocr_box,
                                                           modes=(11, 7), variants=('grayscale', 'warna'))
                             unique = {c['text']: c for c in data['ocr'] if c.get('text', '').strip()}
                             for candidate in more:
@@ -201,6 +271,14 @@ class AutoLocateTask(QRunnable):
                             data['ocr_fallback_used'] = False
                     except (OCRError, OSError, ValueError, RuntimeError) as exc:
                         data['ocr_error'] = str(exc)
+                    if data.get('ocr') and self.profile == 'waybill_gsl':
+                        # v1.8.30.9: tolak OCR yang ternyata berasal dari field lain.
+                        native_all = _native_by_field(doc, best['page'])
+                        kept, rejected = [], []
+                        for cand in data['ocr']:
+                            ok, why = check_ocr_relevance(self.field, cand.get('text', ''), native_all)
+                            (kept if ok else rejected).append(cand if ok else dict(cand, reject_reason=why))
+                        data['ocr'], data['ocr_rejected'] = kept, rejected
                     payload['sides'][side] = data
             except (OSError, RuntimeError, ValueError, KeyError) as exc:
                 payload['sides'][side] = {'found': False, 'reason': str(exc)}
@@ -1239,7 +1317,7 @@ class HybridValidationDialog(QDialog):
                                       'periksa crop dan koreksi teks jika diperlukan.')
                 if text_quality(native_text)['suspicious']:
                     requires_review.append(side)
-                if value and _normalize(value) != _normalize(top['text']):
+                if value and normalize_text(value) != normalize_text(top['text']):
                     requires_review.append(side)
             else:
                 suggestion_label.setText(f'OCR {side}: tidak tersedia / tidak menemukan teks')
@@ -1439,7 +1517,7 @@ class HybridValidationDialog(QDialog):
                     'Teks PDF di salah satu area tidak dapat diekstrak secara andal. '
                     'Gunakan nilai yang Anda ketik sebagai hasil verifikasi manual?')
                 if approved != QMessageBox.StandardButton.Yes: return
-            status='MATCH' if _normalize(ta)==_normalize(tb) else 'MISMATCH'
+            status='MATCH' if normalize_text(ta)==normalize_text(tb) else 'MISMATCH'
         # Confirmation of a proposed candidate is an explicit user action.
         self.records[field]={'field_id':field,'status':status,'outcome':'override_stage1',
             'confirmed_at':datetime.now(timezone.utc).isoformat(),

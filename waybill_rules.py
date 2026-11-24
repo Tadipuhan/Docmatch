@@ -4,20 +4,20 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 import re
 import pymupdf as fitz
-from gsl_font_recovery import recover_page_words, recover_gsl_field, UnrecoverableGSLText
+from gsl_font_recovery import recover_page_words, recover_gsl_field, UnrecoverableGSLText, word_anchor
+from gsl_layout import GSL_BOXES, boxes_for_page
+from textnorm import normalize_text
+from flexible_reference import detect_flexible_pdf, extract_flexible
+from anl_form import ANL_FIELDS, extract_anl_form
+from anl_semantics import fields_equal
 
 GSL_SKIPPED_FIELDS = []
 GSL_DIAGNOSTICS = {}
+REFERENCE_NEEDS_REVIEW = []
+REFERENCE_EXTRACTION_DIAGNOSTICS = {}
 
-FIELDS = [
- ('Shipper',(.005,.018,.47,.110)), ('Consignee',(.005,.110,.47,.185)),
- ('Notify Party',(.005,.185,.47,.278)), ('Voyage Number',(.825,.018,.995,.042)),
- ('Waybill Number',(.825,.044,.995,.085)), ('Vessel',(.005,.302,.225,.342)),
- ('Port of Loading',(.225,.302,.47,.342)), ('Port of Discharge',(.47,.302,.735,.342)),
- ('Container & Seal',(.005,.37,.225,.685)), ('Cargo Description',(.225,.37,.72,.685)),
- ('Weight & Measurement',(.715,.37,.995,.685)), ('Place & Date of Issue',(.005,.925,.52,.958)),
- ('Additional Clauses',(.005,.69,.995,.925)),
-]
+# Profil ANL/CNC/CMA CGM: kotak NILAI (tanpa caption) didefinisikan di anl_form.ANL_FIELDS.
+FIELDS = list(ANL_FIELDS)
 @dataclass
 class WaybillDifference:
     kind:str
@@ -37,60 +37,13 @@ def _norm(word):
     return re.sub(r'\s+','',word).casefold()
 
 def extract(path,chosen=None):
-    chosen=set(chosen) if chosen is not None else {name for name,_ in FIELDS}
-    result={}
+    """Ekstraksi formulir ANL/CNC/CMA CGM (v1.8.33.2: anl_form, tanpa caption, jangkar footer)."""
     with fitz.open(path) as doc:
-        if len(doc)==0:raise ValueError('PDF kosong')
-        for name,bounds in FIELDS:
-            if name not in chosen:continue
-            words=[]
-            page_ids=range(len(doc)) if name=='Additional Clauses' else [0]
-            for page_no in page_ids:
-                page=doc[page_no]
-                region=_rect(page,bounds if page_no==0 else (.005,.69,.995,.925))
-                for w in page.get_text('words',clip=region,sort=True):
-                    if len(w)<5:continue
-                    token=str(w[4]).strip()
-                    if token:
-                        words.append({'word':token,'rect':fitz.Rect(w[:4]),'page':page_no})
-            result[name]={'text':' '.join(w['word'] for w in words),'words':words}
-    return result
+        return extract_anl_form(doc,chosen)
 
 def _hits(words,start,end,kind):
     # Preserve each individual PDF word bounding box. No whole-field overlays.
     return [{'page':w['page'],'rect':w['rect'],'kind':kind} for w in words[start:end]]
-
-def compare_waybills(reference_pdf, examined_pdf, selected=None):
-    """Return one auditable discrepancy per edit opcode, with matching PDF marks."""
-    selected=set(selected) if selected is not None else {name for name,_ in FIELDS}
-    ref=extract(reference_pdf,selected); exam=extract(examined_pdf,selected)
-    differences=[]; locations=[]
-    for name,_ in FIELDS:
-        if name not in selected:continue
-        a=ref[name]['words']; b=exam[name]['words']
-        # Page 1 GSL: compare the entire data field, not OCR word fragments.
-        # A single difference also gives one correction note per physical box.
-        if profile == 'waybill_gsl' and name in GSL_PAGE1_FIELDS:
-            at = ' '.join(_norm(w['word']) for w in a)
-            bt = ' '.join(_norm(w['word']) for w in b)
-            if at != bt:
-                kind = 'Perubahan' if a and b else ('Hilang' if a else 'Berlebih')
-                differences.append(WaybillDifference(kind, None, None,
-                    ' '.join(w['word'] for w in a), ' '.join(w['word'] for w in b),
-                    'Field Waybill: ' + name + '; ' + kind, False, name))
-                locations.append(({'hits': _hits(a, 0, len(a), kind)},
-                                  {'hits': _hits(b, 0, len(b), kind)}))
-            continue
-        matcher=SequenceMatcher(None,[_norm(w['word']) for w in a],[_norm(w['word']) for w in b],autojunk=False)
-        for op,i1,i2,j1,j2 in matcher.get_opcodes():
-            if op=='equal':continue
-            kind={'replace':'Perubahan','delete':'Hilang','insert':'Berlebih'}[op]
-            reference_text=' '.join(w['word'] for w in a[i1:i2])
-            examined_text=' '.join(w['word'] for w in b[j1:j2])
-            differences.append(WaybillDifference(kind,None,None,reference_text,examined_text,
-                               'Field Waybill: '+name+'; '+kind,False,name))
-            locations.append(({'hits':_hits(a,i1,i2,kind)}, {'hits':_hits(b,j1,j2,kind)}))
-    return differences,locations
 
 # Page-specific, non-overlapping cells calibrated against the supplied SWB samples.
 # Each entry: (page index, x0, y0, x1, y1) in normalized page coordinates.
@@ -403,35 +356,15 @@ GSL_PAGE1_FIELDS = (
     'Further Routing', 'Main - Container & Seal', 'Main - Cargo Description',
     'Main - Clauses', 'Freight Payable At', 'Place & Date of Issue',
 )
-GSL_CELLS = {
- 'Shipper':[(0,.07,.073,.49,.146)],
- 'Booking Number':[(0,.49,.073,.69,.105)],
- 'Waybill Number':[(0,.69,.073,.98,.105)],
- 'Consignee':[(0,.07,.146,.49,.237)],
- 'Forwarding Agent':[(0,.49,.146,.98,.208)],
- 'Notify Party':[(0,.07,.237,.49,.341)],
- 'Point and Country of Origin':[(0,.49,.208,.98,.236)],
- 'Remarks':[(0,.49,.237,.98,.383)],
- 'Initial Carriage':[(0,.07,.341,.29,.365)],
- 'Place of Receipt':[(0,.29,.341,.49,.365)],
- 'Vessel':[(0,.07,.365,.29,.383)],
- 'Port of Loading':[(0,.29,.365,.49,.383)],
- 'Port of Discharge':[(0,.07,.383,.29,.421)],
- 'Final Destination':[(0,.29,.383,.49,.421)],
- 'Further Routing':[(0,.49,.383,.98,.421)],
- 'Main - Container & Seal':[(0,.07,.434,.30,.67)],
- 'Main - Cargo Description':[(0,.30,.434,.98,.67)],
- 'Main - Clauses':[(0,.07,.67,.98,.855)],
- 'Freight Payable At':[(0,.57,.855,.98,.892)],
- 'Place & Date of Issue':[(0,.57,.892,.98,.928)],
- # Attached List on PDF page 3: unchanged from previous release.
+GSL_CELLS = {name: [(0, *box)] for name, box in GSL_BOXES.items()}
+GSL_CELLS.update({
  'Attached List - MKS & NOS/SEAL.NO':[(2,.07,.155,.258,.392)],
  'Attached List - Description of Goods':[(2,.258,.155,.680,.392)],
  'Attached List - Weight & Measurement':[(2,.680,.155,.975,.392)],
  'Attached List - CONT & SEAL':[(2,.07,.392,.975,.420)],
  "Attached List - SHIPPER'S LOAD STOWAGE & COUNT":[(2,.07,.420,.975,.505)],
  'Attached List - CLAUSES':[(2,.07,.525,.975,.720)],
-}
+})
 
 # Only the top printed caption area is layout, even if OCR reads it differently.
 # Two-line captions need a taller mask. A mask is limited to the caption band,
@@ -470,6 +403,14 @@ def _profile_cells(profile, page=None):
     if profile=='waybill_msc':return msc_cells_for_doc(page) if page is not None else MSC_CELLS
     raise ValueError('Preset SWB tidak dikenal: '+str(profile))
 
+def _gsl_bounds(doc,page_no,name,bounds,cache):
+    """Batas sel GSL halaman 1 yang disesuaikan ke garis formulir dokumen ini."""
+    if page_no!=0 or name not in GSL_BOXES:return bounds
+    if 0 not in cache:
+        try:cache[0]=boxes_for_page(doc[0])[0]
+        except Exception:cache[0]={}
+    return cache[0].get(name,bounds)
+
 def _readable_ratio(words):
     if not words:return 0.0
     return sum(bool(re.search(r'[A-Za-z]{2,}|\d{3,}',w['word'])) for w in words)/len(words)
@@ -492,6 +433,7 @@ def extract(path,chosen=None,profile='waybill_anl'):
             cells=msc_cells_for_doc(doc)
         # Decoder-first: no OCR runtime is required for trusted Type3 glyphs.
         page_cache = {}
+        snapped = {}
         for name,regions in cells.items():
             if name not in chosen:continue
             if profile=='waybill_gsl':
@@ -508,10 +450,10 @@ def extract(path,chosen=None,profile='waybill_anl'):
                     if page_no not in page_cache:
                         try:page_cache[page_no]=recover_page_words(doc,page_no)
                         except (UnrecoverableGSLText,ValueError):page_cache[page_no]=[]
-                    cell=_rect(doc[page_no],bounds)
+                    cell=_rect(doc[page_no],_gsl_bounds(doc,page_no,name,bounds,snapped))
                     for w in page_cache[page_no]:
-                        r=fitz.Rect(w['rect'])
-                        if cell.contains((r.tl+r.br)*.5):
+                        # v1.8.30.9: sel memiliki seluruh rangkaian teks yang DIMULAI di dalamnya
+                        if cell.contains(word_anchor(w)):
                             words.append(dict(w,confidence=100.0))
                 # Type3 data glyphs exclude the printed template labels in the
                 # supplied GSL files; never strip a valid field value by keyword.
@@ -599,23 +541,93 @@ def extract(path,chosen=None,profile='waybill_anl'):
                 result.setdefault(field, {'text':'','words':[]})
     return result
 
+# True = tandai SELURUH isi field (perilaku v1.8.29); False = hanya kata yang berbeda.
+GSL_MARK_WHOLE_FIELD = False
+
+def _gsl_changed_hits(a,b,kind):
+    """Penanda per kata untuk satu field GSL. Satu perbedaan per field tetap dipertahankan."""
+    if GSL_MARK_WHOLE_FIELD or kind!='Perubahan' or not a or not b:
+        return _hits(a,0,len(a),kind),_hits(b,0,len(b),kind)
+    matcher=SequenceMatcher(None,[_norm(w['word']) for w in a],[_norm(w['word']) for w in b],autojunk=False)
+    ia=[];ib=[]
+    for op,i1,i2,j1,j2 in matcher.get_opcodes():
+        if op=='equal':continue
+        ia+=list(range(i1,i2));ib+=list(range(j1,j2))
+    ha=[{'page':a[i]['page'],'rect':a[i]['rect'],'kind':kind} for i in ia] or _hits(a,0,len(a),kind)
+    hb=[{'page':b[j]['page'],'rect':b[j]['rect'],'kind':kind} for j in ib] or _hits(b,0,len(b),kind)
+    return ha,hb
+
 def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_anl'):
     cells=_profile_cells(profile)
     selected=set(selected) if selected is not None else set(cells)
-    global GSL_SKIPPED_FIELDS, GSL_DIAGNOSTICS
+    global GSL_SKIPPED_FIELDS, GSL_DIAGNOSTICS, REFERENCE_NEEDS_REVIEW, REFERENCE_EXTRACTION_DIAGNOSTICS
     GSL_SKIPPED_FIELDS = []
     GSL_DIAGNOSTICS = {}
-    ref=extract(reference_pdf,selected,profile)
-    exam=extract(examined_pdf,selected,profile)
+    REFERENCE_NEEDS_REVIEW = []
+    REFERENCE_EXTRACTION_DIAGNOSTICS = {}
+    # The selected SWB preset describes ONLY the examined document (PDF B).
+    # PDF A is independently recognised as a labelled reference or as the
+    # corresponding carrier form. This preserves each carrier's field list.
+    is_anl = profile in ('waybill','waybill_anl',None)
+    reference_flexible = detect_flexible_pdf(reference_pdf, selected)
+    # v1.8.33.2: pada profil ANL kata rujukan dibaca per kata supaya penanda hanya menutup nilai.
+    ref = (extract_flexible(reference_pdf, selected, word_level=is_anl) if reference_flexible
+           else extract(reference_pdf, selected, profile))
+    # Allow a labelled PDF B for diagnostics/tests; carrier forms keep their own engine.
+    examined_flexible = detect_flexible_pdf(examined_pdf, selected)
+    exam = (extract_flexible(examined_pdf, selected, word_level=is_anl) if examined_flexible
+            else extract(examined_pdf, selected, profile))
+    if reference_flexible:
+        REFERENCE_EXTRACTION_DIAGNOSTICS = {
+            f: {'valid': bool(v.get('valid')), 'text': v.get('text',''),
+                'reason':v.get('reason',''), 'source':v.get('source','')}
+            for f,v in ref.items()
+        }
     differences=[];locations=[]
     for name in cells:
         if name not in selected:continue
+        if reference_flexible and not ref[name].get('valid',False):
+            REFERENCE_NEEDS_REVIEW.append(name)
+            if profile=='waybill_gsl': GSL_SKIPPED_FIELDS.append(name)
+            # An absent field on the reference is unknown, not an empty value.
+            continue
+        if examined_flexible and not exam[name].get('valid',False):
+            REFERENCE_NEEDS_REVIEW.append(name)
+            if profile=='waybill_gsl': GSL_SKIPPED_FIELDS.append(name)
+            continue
         if profile=='waybill_gsl':
             GSL_DIAGNOSTICS[name] = {'rujukan': {'valid': ref[name].get('valid'), 'text': ref[name].get('text',''), 'words': ref[name].get('words',[]), 'reason': ref[name].get('reason',''), 'source': ref[name].get('source','')}, 'diperiksa': {'valid': exam[name].get('valid'), 'text': exam[name].get('text',''), 'words': exam[name].get('words',[]), 'reason': exam[name].get('reason',''), 'source': exam[name].get('source','')}}
             if (ref[name].get('valid') is False or exam[name].get('valid') is False):
                 GSL_SKIPPED_FIELDS.append(name)
                 continue
         a=ref[name]['words'];b=exam[name]['words']
+        # Flexible documents may wrap the same sentence at different positions.
+        # Compare the full field without layout-induced whitespace, and never
+        # turn an unknown field into a false MATCH.
+        if reference_flexible or examined_flexible:
+            ref_text, exam_text = ref[name]['text'], exam[name]['text']
+            # ANL: bandingkan NILAI kanonik (angka, kontainer, tanggal) bila layout rujukan berbeda
+            # dari formulir; hasilnya None bila tidak ada aturan -> perbandingan teks biasa.
+            same = None
+            if is_anl:
+                ref_value = ref[name].get('semantic_text', ref_text)
+                exam_value = exam[name].get('semantic_text', exam_text)
+                same = fields_equal(name, ref_value, exam_value)
+                if 'semantic_words' in exam[name]:
+                    b, exam_text = exam[name]['semantic_words'], exam_value
+                if 'semantic_words' in ref[name]:
+                    a, ref_text = ref[name]['semantic_words'], ref_value
+            if same is None:
+                at = re.sub(r'\s+', '', ref_text).casefold()
+                bt = re.sub(r'\s+', '', exam_text).casefold()
+                same = (at == bt)
+            if not same:
+                kind = 'Perubahan' if a and b else ('Hilang' if a else 'Berlebih')
+                differences.append(WaybillDifference(kind,None,None,ref_text,exam_text,
+                    'Field Waybill: '+name+'; '+kind,False,name))
+                hits_a,hits_b=_gsl_changed_hits(a,b,kind)
+                locations.append(({'hits':hits_a},{'hits':hits_b}))
+            continue
         # Page 1 GSL: compare the entire data field, not OCR word fragments.
         # A single difference also gives one correction note per physical box.
         if profile == 'waybill_gsl' and name in GSL_PAGE1_FIELDS:
@@ -626,8 +638,8 @@ def compare_waybills(reference_pdf,examined_pdf,selected=None,profile='waybill_a
                 differences.append(WaybillDifference(kind, None, None,
                     ' '.join(w['word'] for w in a), ' '.join(w['word'] for w in b),
                     'Field Waybill: ' + name + '; ' + kind, False, name))
-                locations.append(({'hits': _hits(a, 0, len(a), kind)},
-                                  {'hits': _hits(b, 0, len(b), kind)}))
+                hits_a, hits_b = _gsl_changed_hits(a, b, kind)
+                locations.append(({'hits': hits_a}, {'hits': hits_b}))
             continue
         matcher=SequenceMatcher(None,[_norm(w['word']) for w in a],[_norm(w['word']) for w in b],autojunk=False)
         for op,i1,i2,j1,j2 in matcher.get_opcodes():
@@ -654,7 +666,7 @@ def audit_gsl_page1(reference_path, examined_path):
             status = 'PERLU_VERIFIKASI'
         elif not a['text'].strip() and not b['text'].strip():
             status = 'KOSONG_KEDUANYA'
-        elif ' '.join(a['text'].upper().split()) == ' '.join(b['text'].upper().split()):
+        elif normalize_text(a['text']) == normalize_text(b['text']):
             status = 'SAMA'
         else:
             status = 'BERBEDA'
