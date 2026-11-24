@@ -9,7 +9,7 @@ import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF, QTimer, QStandardPaths, QEvent
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush, QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem,QSplashScreen,QLineEdit,QTabWidget,QInputDialog)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem,QSplashScreen,QLineEdit,QTabWidget,QInputDialog,QSizePolicy)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert, Difference
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
@@ -288,7 +288,7 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.8.35.7 — Auto Portable Packaging (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.8.35.9 — Cross-Carrier Header Layout Fix (Offline)');self.resize(1100,740)
         self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
         self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False;self.has_compared=False
@@ -326,10 +326,13 @@ class Window(QMainWindow):
         self.autosave_timer.setInterval(1200)
         self.autosave_timer.timeout.connect(self._autosave)
         self.wizard_stack=QStackedWidget()
-        # The wizard is a compact contextual toolbar, never an expanding panel.
-        # In Hasil & Ekspor it is hidden entirely (the ribbon owns the actions).
-        self.wizard_stack.setMaximumHeight(58)
-        self.wizard_stack.setMinimumHeight(0)
+        # Match the height of the *active* wizard page. Step 2 now has two
+        # control rows (comparison + independent reference profile): the old
+        # 58px limit compressed them and clipped their labels after Bandingkan.
+        # A fixed vertical size policy plus per-page sizeHint keeps Step 1
+        # compact while allowing Step 2 to occupy its natural height.
+        self.wizard_stack.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         main.addWidget(self.wizard_stack, 0)
         # Word-inspired contextual ribbon: visible only in Hasil & Ekspor.
         self.result_ribbon=QFrame();self.result_ribbon.setObjectName('resultRibbon')
@@ -539,7 +542,7 @@ class Window(QMainWindow):
                   available.y()+max(0,(available.height()-self.height())//2))
         self.document_split.setSizes([540,540])
         split.setSizes(responsive_split_widths(self.width()-30,360))
-        self.status=QLabel('v1.8.35.7 · Catatan rujukan & Auto ZIP Portable · Offline')
+        self.status=QLabel('v1.8.35.9 · Cross-Carrier SWB · Header Fix · Offline')
         main.addWidget(self.status)
         for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
@@ -556,6 +559,7 @@ class Window(QMainWindow):
           QScrollArea#paperScroll{{border:1px solid #DDE2EA;background:#E9EDF2}}
           QListWidget,QComboBox{{background:white;border:1px solid #D8DADF;border-radius:6px;padding:6px}}
           QListWidget::item{{padding:8px;border-bottom:1px solid #EEEEEE}} QListWidget::item:selected{{background:#F6DCE0;color:#242424}}''')
+        QTimer.singleShot(0, self._sync_wizard_toolbar_height)
     def _remember_inspector_width(self, position, index):
         """Respect user drag resizing instead of resetting it on every refresh."""
         if index == 1:
@@ -586,11 +590,39 @@ class Window(QMainWindow):
         if hasattr(self, 'workspace_splitter'):
             self._queue_workspace_fit()
 
+    def _sync_wizard_toolbar_height(self):
+        """Size the ribbon to its active page, including high-DPI/font changes.
+
+        Do not use a global 58px cap: the SWB comparison page has two rows.
+        Measure after showing the page so hidden controls are accounted for.
+        """
+        stack = self.wizard_stack
+        page = stack.currentWidget()
+        if page is None:
+            return
+        layout = page.layout()
+        if layout is not None:
+            layout.invalidate()
+            layout.activate()
+        # SizeHint includes layout margins, spacing, button text and the
+        # platform's actual QComboBox/QPushButton minimum sizes.
+        content_height = max(page.sizeHint().height(),
+                             layout.sizeHint().height() if layout is not None else 0)
+        min_height = 48
+        if stack.currentIndex() == 1 and self.reference_profile_bar.isVisibleTo(page):
+            # Two 32px-ish rows plus margins; this floor protects compact themes.
+            min_height = 86
+        stack.setFixedHeight(max(min_height, content_height + 6))
+
     def show_step(self,index):
         self.wizard_stack.setCurrentIndex(index)
         # The old empty third step occupied a large blank strip on screen.
         # Reclaim the entire area for the PDF viewers and the contextual ribbon.
         self.wizard_stack.setVisible(index != 2)
+        if index != 2:
+            self._sync_wizard_toolbar_height()
+            # Re-measure once Qt applies the stylesheet and the new page layout.
+            QTimer.singleShot(0, self._sync_wizard_toolbar_height)
         if hasattr(self, 'result_ribbon'):
             self.result_ribbon.setVisible(index == 2)
         if hasattr(self, 'workspace_pages'):
@@ -658,6 +690,9 @@ class Window(QMainWindow):
         self.waybill_btn.setEnabled(is_waybill)
         if hasattr(self, 'reference_profile_bar'):
             self.reference_profile_bar.setVisible(is_waybill)
+            if self.wizard_stack.currentIndex() == 1:
+                self._sync_wizard_toolbar_height()
+                QTimer.singleShot(0, self._sync_wizard_toolbar_height)
         if is_waybill:
             # Do not carry a field subset from another shipping-line template.
             selected_profile = self.rule_mode.currentData()

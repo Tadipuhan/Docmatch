@@ -1,11 +1,13 @@
-# DocMatch v1.8.35.8
+# DocMatch v1.8.35.9
 
 **Aplikasi Pembanding, Validasi, dan Koreksi Dokumen PDF — Offline**  
-**Rilis:** v1.8.35.8 — *Cross-Carrier SWB Reference Matching*
+**Rilis:** v1.8.35.9 — *Cross-Carrier SWB & Header Layout Fix*
 
 DocMatch adalah aplikasi desktop Windows untuk membandingkan nilai parameter dokumen rujukan (**Dokumen A**) dengan dokumen yang diperiksa (**Dokumen B**). Aplikasi menyediakan profil Field Waybill berdasarkan perusahaan pelayaran, pemeriksaan ketidaksesuaian, validasi ulang, penanda pada dokumen, Catatan Koreksi, dan ekspor hasil.
 
 Versi **1.8.35.8** memungkinkan Dokumen A dan Dokumen B berasal dari SWB **shipping line berbeda**. Ekstraksi PDF A memakai profil A sendiri (otomatis atau manual), sedangkan field serta koordinat PDF B tetap mengikuti preset yang dipilih. Fitur build ZIP/7z otomatis dari v1.8.35.7 dipertahankan.
+
+**Baru v1.8.35.9:** memperbaiki header Tab 2 yang terpotong akibat tinggi toolbar 58 px pada dua baris kontrol. Tinggi toolbar sekarang menyesuaikan halaman aktif dan DPI/font. Lihat `README_v1.8.35.9.md` dan `CHANGELOG_v1.8.35.9.md`. Kemampuan Cross-Carrier dari v1.8.35.8 tetap dipertahankan.
 
 ## 1. Fitur utama
 
