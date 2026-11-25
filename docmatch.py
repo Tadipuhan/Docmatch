@@ -1,6 +1,6 @@
 """DocMatch v0.4: local desktop visual document comparison."""
 from __future__ import annotations
-import sys, tempfile, shutil, json, difflib, re, io, zipfile, copy, logging, traceback
+import sys, tempfile, shutil, json, difflib, re, io, zipfile, copy, logging, traceback, uuid
 from datetime import datetime, timezone
 from collections import OrderedDict
 from pathlib import Path
@@ -9,7 +9,7 @@ import pymupdf as fitz
 from PySide6.QtCore import Qt, QSize, QRectF, QTimer, QStandardPaths, QEvent
 from PySide6.QtGui import QColor, QImage, QPixmap, QPainter, QPen, QFont, QTextCursor, QTextCharFormat, QBrush, QIcon
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QPushButton,QLabel,
-    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem,QSplashScreen,QLineEdit,QTabWidget,QInputDialog,QSizePolicy)
+    QFileDialog,QSplitter,QScrollArea,QListWidget,QListWidgetItem,QMessageBox,QComboBox,QFrame,QCheckBox,QDialog,QDialogButtonBox,QTextEdit,QPlainTextEdit,QStackedWidget,QTreeWidget,QTreeWidgetItem,QSplashScreen,QLineEdit,QTabWidget,QInputDialog,QSizePolicy,QRadioButton)
 from legacy_v01 import read_blocks, compare, corrected_blocks, save_docx, libreoffice_convert, Difference
 from rules import parse_embedded, resolve_scope, selective_compare
 from editor import CorrectionEditor, save_annotated_docx
@@ -24,6 +24,8 @@ from correction_note_layout import NOTE_MARGIN, note_box_layout
 from correction_markers import draw_number_marker, scan_ink_guard
 from correction_preview import CorrectionPreview
 from export_naming import correction_pdf_filename
+from pl_si_reference import (extract_pl_si, merge_pdf, verify_pdf, ReferenceReadError, additional_claims)
+from matched_values import match_marks, compare_equal_paragraphs, number_match_marks, layout_match_markers
 from reference_note_format import (address_reference_values, is_address_field,
                                    structured_reference_values, is_structured_field)
 
@@ -68,6 +70,7 @@ RED='#850D1C'; DARK='#20232A'; BG='#F3F4F6'; GREEN='#D5F3DC'
 # Supersampling improves PDF readability without changing the displayed page dimensions.
 RENDER_QUALITY=2.0
 HIGHLIGHT_ALPHA=65  # 0 = transparent; 255 = opaque
+PL_SI_EXTRA_FIELDS = {'Invoice Number', 'HS Code', 'Net Weight'}
 
 
 def make_preview(path:Path, tmp:Path)->Path:
@@ -83,15 +86,34 @@ def fragments(text:str):
 
 class Paper(QWidget):
     def __init__(self,title):
-        super().__init__(); self.pdf=None; self.page=0; self.zoom=1.15; self.marks=[]; self.stage2_marks=[]; self.hidden_stage2_fields=set(); self.mark_field_map={}; self.title=title; self.highlights=True; self._page_cache=OrderedDict(); self._page_cache_limit=3; self.fit_mode=True
+        super().__init__(); self.pdf=None; self.page=0; self.zoom=1.15; self.marks=[]; self.stage2_marks=[]; self.hidden_stage2_fields=set(); self.mark_field_map={}; self.title=title; self.highlights=True; self.show_matches=False; self.match_marks=[]; self._page_cache=OrderedDict(); self._page_cache_limit=3; self._match_badge_cache={}; self.fit_mode=True
         self.setObjectName('paperPanel')
         lay=QVBoxLayout(self); lay.setContentsMargins(10,10,10,10); lay.setSpacing(8)
-        bar=QHBoxLayout(); self.heading=QLabel(title); self.heading.setStyleSheet('font-weight:700')
-        bar.addWidget(self.heading); bar.addStretch()
+        # Two compact toolbar rows prevent the long document title plus seven
+        # controls from dictating a 550-700px minimum width for EACH PDF viewer.
+        # With two viewers and the inspector, the old size hint could push the
+        # entire window past the right edge after loading a document.
+        self.heading=QLabel(title)
+        self.heading.setStyleSheet('font-weight:700')
+        self.heading.setMinimumWidth(0)
+        self.heading.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Fixed)
+        self.heading.setToolTip(title)
+        self.toggle=QCheckBox('Stabilo');self.toggle.setChecked(True)
+        title_bar=QHBoxLayout();title_bar.setSpacing(5)
+        title_bar.addWidget(self.heading,1)
+        title_bar.addWidget(self.toggle,0)
+        lay.addLayout(title_bar)
         self.prev=QPushButton('‹');self.next=QPushButton('›');self.counter=QLabel('0 / 0')
-        self.minus=QPushButton('−');self.plus=QPushButton('+');self.fit_btn=QPushButton('Lebar');self.fit_btn.setToolTip('Sesuaikan halaman PDF dengan lebar panel');self.toggle=QCheckBox('Stabilo');self.toggle.setChecked(True)
-        for w in (self.prev,self.counter,self.next,self.minus,self.plus,self.fit_btn,self.toggle):bar.addWidget(w)
-        lay.addLayout(bar)
+        self.minus=QPushButton('−');self.plus=QPushButton('+');self.fit_btn=QPushButton('Lebar');self.fit_btn.setToolTip('Sesuaikan halaman PDF dengan lebar panel')
+        self.counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.counter.setMinimumWidth(75)
+        toolbar=QHBoxLayout();toolbar.setSpacing(3)
+        for control in (self.prev,self.next,self.minus,self.plus):
+            control.setMaximumWidth(36)
+        for control in (self.prev,self.counter,self.next,self.minus,self.plus,self.fit_btn):
+            toolbar.addWidget(control)
+        toolbar.addStretch(1)
+        lay.addLayout(toolbar)
         self.scroll=QScrollArea();self.scroll.setObjectName('paperScroll');self.scroll.setWidgetResizable(False);self.scroll.setAlignment(Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop);self.scroll.viewport().installEventFilter(self)
         self.canvas=QLabel('Pilih dokumen lalu klik Bandingkan');self.canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.canvas.setObjectName('paperPage');self.canvas.setStyleSheet('background:white; color:#6B7280;border:1px solid #D4D9E0;');self.canvas.setMinimumSize(240,320)
@@ -119,12 +141,12 @@ class Paper(QWidget):
 
     def load(self,path,marks):
         if self.pdf:self.pdf.close()
-        self._page_cache.clear()
+        self._page_cache.clear(); self._match_badge_cache.clear()
         self.pdf=fitz.open(path);self.marks=marks;self.stage2_marks=[];self.page=0;self.render();QTimer.singleShot(0,self.fit_width)
     def clear(self, message='Pilih dokumen lalu klik Bandingkan'):
         if self.pdf:
             self.pdf.close()
-        self.pdf=None;self.page=0;self.marks=[];self.stage2_marks=[];self._page_cache.clear()
+        self.pdf=None;self.page=0;self.marks=[];self.match_marks=[];self.stage2_marks=[];self._page_cache.clear();self._match_badge_cache.clear()
         self.counter.setText('0 / 0')
         self.canvas.setPixmap(QPixmap())
         self.canvas.setText(message)
@@ -151,52 +173,89 @@ class Paper(QWidget):
                 self._page_cache.popitem(last=False)
         else:
             self._page_cache.move_to_end(key)
-        # Draw annotations on a fresh copy, never on the cached clean page.
+        # Exclusive switch: ON = green matches only; OFF = differences only.
+        # Stage-2 correction overlays are also differences and must stay hidden
+        # while inspecting matching values. Underlying findings remain intact.
         img=img.copy()
-        if self.highlights:
+        if self.show_matches or self.highlights:
             painter=QPainter(img)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing,True)
-            seen_markers=set()
-            for m in self.marks:
-                if self.mark_field_map.get(m.get('id')) in self.hidden_stage2_fields:continue
-                if m['page']!=self.page:continue
-                rect=m['rect']*fitz.Matrix(scale,scale)
-                # Semi-transparent highlighter: original black text remains visible.
-                base=QColor({'Perubahan':'#E84A5F','Hilang':'#F5B942','Berlebih':'#3899E8'}.get(m.get('kind'),'#E84A5F'))
-                fill=QColor(base);fill.setAlpha(HIGHLIGHT_ALPHA)
-                painter.fillRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),fill)
-                outline=QColor(base);outline.setAlpha(155)
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(QPen(outline,max(1,scale*.65)))
-                painter.drawRect(QRectF(rect.x0,rect.y0,rect.width,rect.height))
-                # One numbered marker per finding per page, despite multiple highlighted tokens.
-                marker_key=(m['id'],m['page'])
-                if marker_key in seen_markers:continue
-                seen_markers.add(marker_key)
-                diameter=15*scale
-                x=max(2*scale,min(img.width()-diameter-2*scale,rect.x1-diameter/2))
-                y=rect.y0-diameter-4*scale
-                if y<0:y=min(img.height()-diameter,rect.y1+3*scale)
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.setBrush(QColor({'Perubahan':'#B00020','Hilang':'#A56A00','Berlebih':'#1765A9'}.get(m.get('kind'),'#B00020')))
-                painter.drawEllipse(int(x),int(y),int(diameter),int(diameter))
-                painter.setPen(QColor('white'))
-                painter.setFont(QFont('Arial',max(8,int(8*scale)),QFont.Weight.Bold))
-                painter.drawText(int(x),int(y),int(diameter),int(diameter),Qt.AlignmentFlag.AlignCenter,str(m['id']))
-            # Stage 2 overlays are independent of discrepancy type and can be
-            # toggled in the Export checklist without touching the source PDF.
-            for mark in self.stage2_marks:
-                if mark['page'] != self.page: continue
-                rect = fitz.Rect(mark['rect']) * fitz.Matrix(scale, scale)
-                painter.setBrush(QBrush(QColor(30, 120, 175, 30)))
-                painter.setPen(QPen(QColor('#176AA0'), max(1.0, .85 * scale)))
-                painter.drawRect(QRectF(rect.x0, rect.y0, rect.width, rect.height))
+            if self.show_matches:
+                page_marks=[m for m in self.match_marks if m.get('page')==self.page]
+                fill=QColor('#16A36C');fill.setAlpha(58)
+                outline=QColor('#0A8756');outline.setAlpha(125)
+                for equal in page_marks:
+                    rect=fitz.Rect(equal['rect'])*fitz.Matrix(scale,scale)
+                    if rect.is_empty or rect.is_infinite:continue
+                    painter.fillRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),fill)
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.setPen(QPen(outline,max(.8,scale*.48)))
+                    painter.drawRect(QRectF(rect.x0,rect.y0,rect.width,rect.height))
+                # Cache layouts in PDF coordinates so resizing/zooming never
+                # changes badge placement or costs a full text scan each time.
+                signature=(self.page,tuple((m.get('id'),m.get('field'),
+                            tuple(round(v,2) for v in fitz.Rect(m['rect'])))
+                            for m in page_marks))
+                badges=self._match_badge_cache.get(signature)
+                if badges is None:
+                    badges=layout_match_markers(p,page_marks)
+                    self._match_badge_cache={signature:badges}
+                for badge in badges:
+                    rect=fitz.Rect(badge['rect'])*fitz.Matrix(scale,scale)
+                    painter.setPen(Qt.PenStyle.NoPen)
+                    painter.setBrush(QColor('#08764A'))
+                    painter.drawRoundedRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),
+                                            2.0*scale,2.0*scale)
+                    painter.setPen(QColor('white'))
+                    painter.setFont(QFont('Arial',max(7,int(7.3*scale)),QFont.Weight.Bold))
+                    painter.drawText(QRectF(rect.x0,rect.y0,rect.width,rect.height),
+                                     Qt.AlignmentFlag.AlignCenter,f"#{badge['id']:02d}")
+            elif self.highlights:
+                self._draw_diff_marks(painter,scale,img)
             painter.end()
         result=QPixmap.fromImage(img)
         result.setDevicePixelRatio(RENDER_QUALITY)
         self.canvas.setPixmap(result)
         self.canvas.resize(result.deviceIndependentSize().toSize())
         self.counter.setText(f'{self.page+1} / {len(self.pdf)}  ·  {int(self.zoom*100)}%')
+
+
+    def _draw_diff_marks(self,painter,scale,img):
+        seen_markers=set()
+        for m in self.marks:
+            if self.mark_field_map.get(m.get('id')) in self.hidden_stage2_fields:continue
+            if m['page']!=self.page:continue
+            rect=fitz.Rect(m['rect'])*fitz.Matrix(scale,scale)
+            # Semi-transparent highlighter: original black text remains visible.
+            base=QColor({'Perubahan':'#E84A5F','Hilang':'#F5B942','Berlebih':'#3899E8'}.get(m.get('kind'),'#E84A5F'))
+            fill=QColor(base);fill.setAlpha(HIGHLIGHT_ALPHA)
+            painter.fillRect(QRectF(rect.x0,rect.y0,rect.width,rect.height),fill)
+            outline=QColor(base);outline.setAlpha(155)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(outline,max(1,scale*.65)))
+            painter.drawRect(QRectF(rect.x0,rect.y0,rect.width,rect.height))
+            # One numbered marker per finding per page, despite multiple highlighted tokens.
+            marker_key=(m['id'],m['page'])
+            if marker_key in seen_markers:continue
+            seen_markers.add(marker_key)
+            diameter=15*scale
+            x=max(2*scale,min(img.width()-diameter-2*scale,rect.x1-diameter/2))
+            y=rect.y0-diameter-4*scale
+            if y<0:y=min(img.height()-diameter,rect.y1+3*scale)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor({'Perubahan':'#B00020','Hilang':'#A56A00','Berlebih':'#1765A9'}.get(m.get('kind'),'#B00020')))
+            painter.drawEllipse(int(x),int(y),int(diameter),int(diameter))
+            painter.setPen(QColor('white'))
+            painter.setFont(QFont('Arial',max(8,int(8*scale)),QFont.Weight.Bold))
+            painter.drawText(int(x),int(y),int(diameter),int(diameter),Qt.AlignmentFlag.AlignCenter,str(m['id']))
+        # Stage 2 overlays are independent of discrepancy type and can be
+        # toggled in the Export checklist without touching the source PDF.
+        for mark in self.stage2_marks:
+            if mark['page'] != self.page: continue
+            rect = fitz.Rect(mark['rect']) * fitz.Matrix(scale, scale)
+            painter.setBrush(QBrush(QColor(30, 120, 175, 30)))
+            painter.setPen(QPen(QColor('#176AA0'), max(1.0, .85 * scale)))
+            painter.drawRect(QRectF(rect.x0, rect.y0, rect.width, rect.height))
 
 
 def locate(pdf_path:Path,diffs,side:str):
@@ -288,10 +347,10 @@ def full_line_correction(pdf, page_no, examined_fragment, reference_fragment, ki
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__();self.setWindowTitle('DocMatch v1.8.35.9 — Cross-Carrier Header Layout Fix (Offline)');self.resize(1100,740)
+        super().__init__();self.setWindowTitle('DocMatch v1.8.36.5 — Exclusive Match/Difference Markers (Offline)');self.resize(1100,740)
         self.setWindowIcon(app_icon())
         self.tmp=tempfile.TemporaryDirectory(prefix='docmatch_v03_');self.work=Path(self.tmp.name)
-        self.ref_path=None;self.exam_path=None;self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False;self.has_compared=False
+        self.ref_path=None;self.exam_path=None;self.reference_mode='swb';self.si_path=None;self.pl_path=None;self._pl_si_records={};self._pl_si_meta={};self.reference=[];self.examined=[];self.diffs=[];self.ref_pages={};self.exam_pages={};self.ref_match_marks=[];self.exam_match_marks=[];self.matched_fields=set();self.verified_matches=[];self._difference_filter="Semua";self.checks=[];self.scope=set();self.uncertain=[];self.mode="hybrid";self.rule_groups={};self.reference_raw=[];self.waybill_fields={name for name,_ in FIELDS};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None;self._restoring_session=False;self.has_compared=False
         root=QWidget();self.setCentralWidget(root);main=QVBoxLayout(root);main.setContentsMargins(8,5,8,6);main.setSpacing(3)
         header=QHBoxLayout()
         header.setContentsMargins(0,0,0,0)
@@ -344,7 +403,12 @@ class Window(QMainWindow):
         # Step 1: document sources
         step1=QWidget();step1_layout=QHBoxLayout(step1);step1_layout.setContentsMargins(2,7,2,7)
         self.ref_btn=QPushButton('Pilih Dokumen Rujukan');self.exam_btn=QPushButton('Pilih Dokumen Diperiksa')
-        self.ref_btn.clicked.connect(lambda:self.pick('ref'));self.exam_btn.clicked.connect(lambda:self.pick('exam'))
+        # Long user filenames must not enlarge the entire main window.
+        # The full filename remains accessible as a tooltip.
+        for chooser in (self.ref_btn,self.exam_btn):
+            chooser.setMinimumWidth(0)
+            chooser.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Fixed)
+        self.ref_btn.clicked.connect(self.pick_reference);self.exam_btn.clicked.connect(lambda:self.pick('exam'))
         step1_layout.addWidget(self.ref_btn,1);step1_layout.addWidget(self.exam_btn,1)
         next1=QPushButton('Atur Parameter  →');next1.clicked.connect(lambda:self.show_step(1));step1_layout.addWidget(next1)
         self.wizard_stack.addWidget(step1)
@@ -427,13 +491,33 @@ class Window(QMainWindow):
         self.ref_view=Paper('DOKUMEN RUJUKAN');self.exam_view=Paper('DOKUMEN DIPERIKSA')
         self.document_split.addWidget(self.ref_view);self.document_split.addWidget(self.exam_view)
         self.document_split.setChildrenCollapsible(False)
+        self.document_split.setHandleWidth(5)
         self.document_split.setStretchFactor(0,1);self.document_split.setStretchFactor(1,1)
         split.addWidget(self.document_split)
 
-        side=QFrame();side.setObjectName('inspectorPane');side.setMinimumWidth(280)
+        side=QFrame();side.setObjectName('inspectorPane');side.setMinimumWidth(260)
         side.setSizePolicy(side.sizePolicy().horizontalPolicy(), side.sizePolicy().verticalPolicy())
         s=QVBoxLayout(side);s.setContentsMargins(10,10,10,10);s.setSpacing(8)
-        panel_title=QLabel('PANEL PEMERIKSAAN');panel_title.setObjectName('sectionTitle');s.addWidget(panel_title)
+        # Keep the match switch on its own compact row: on 1366px displays
+        # the inspector can be just 280px wide, so title+switch would clip.
+        panel_title=QLabel('PANEL PEMERIKSAAN');panel_title.setObjectName('sectionTitle')
+        s.addWidget(panel_title)
+        matching_header=QHBoxLayout()
+        matching_header.setContentsMargins(0,0,0,0)
+        matching_header.setSpacing(6)
+        green_hint=QLabel('Nilai cocok')
+        green_hint.setStyleSheet('color:#667382;font-size:11px')
+        matching_header.addWidget(green_hint)
+        matching_header.addStretch()
+        self.match_switch=QPushButton('○  Sama: OFF')
+        self.match_switch.setObjectName('matchedSwitch')
+        self.match_switch.setCheckable(True)
+        self.match_switch.setChecked(False)
+        self.match_switch.setMinimumHeight(31)
+        self.match_switch.setToolTip('ON: Tahap 1 dan Tahap 2 menampilkan nilai yang terbukti sama, dengan stabilo hijau.\nOFF: kedua tahap menampilkan nilai berbeda/perlu koreksi. Data hasil dan Catatan Koreksi tidak diubah.')
+        self.match_switch.toggled.connect(self.toggle_matched_values)
+        matching_header.addWidget(self.match_switch)
+        s.addLayout(matching_header)
         self.results_tabs=QTabWidget()
         self.results_tabs.setDocumentMode(True)
         # Share the limited inspector width equally between the two tabs.
@@ -461,8 +545,9 @@ class Window(QMainWindow):
         stage2_layout.addWidget(self.export_annotation_list,1)
         self.export_annotation_search.textChanged.connect(self._filter_export_annotations)
         self.export_annotation_list.itemChanged.connect(self._export_annotation_toggled)
-        info=QLabel('Centang = penanda muncul di PDF A/B dan ekspor.\nHapus centang = hanya menyembunyikan penanda, bukan menghapus hasil validasi.')
-        info.setWordWrap(True);stage2_layout.addWidget(info)
+        self.export_annotation_list.itemClicked.connect(self._navigate_stage2_result)
+        self.stage2_info=QLabel('OFF: perbedaan serta anotasi Tahap 2.\nCentang hanya tersedia pada field yang telah diberi anotasi.')
+        self.stage2_info.setWordWrap(True);stage2_layout.addWidget(self.stage2_info)
         self.results_tabs.addTab(stage1_tab,'Tahap 1')
         self.results_tabs.addTab(stage2_tab,'Tahap 2')
         self.results_tabs.setTabToolTip(0,'Tahap 1 · Daftar Ketidaksesuaian')
@@ -520,7 +605,7 @@ class Window(QMainWindow):
             viewer.setMinimumWidth(0)
             viewer.scroll.setMinimumWidth(0)
             viewer.canvas.setMinimumWidth(240)
-        side.setMinimumWidth(280)
+        side.setMinimumWidth(260)
         split.setChildrenCollapsible(False)
         split.setHandleWidth(6)
         split.splitterMoved.connect(self._remember_inspector_width)
@@ -542,7 +627,7 @@ class Window(QMainWindow):
                   available.y()+max(0,(available.height()-self.height())//2))
         self.document_split.setSizes([540,540])
         split.setSizes(responsive_split_widths(self.width()-30,360))
-        self.status=QLabel('v1.8.35.9 · Cross-Carrier SWB · Header Fix · Offline')
+        self.status=QLabel('v1.8.36.4 · Responsive PDF Workspace · Rujukan SWB atau PL + SI · 100% Offline')
         main.addWidget(self.status)
         for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
@@ -550,6 +635,8 @@ class Window(QMainWindow):
           QPushButton{{background:white;border:1px solid #D8DADF;border-radius:6px;padding:6px 9px}}
           QPushButton#wizardStep{{padding:5px 9px;font-weight:600;min-height:32px}}
           QPushButton#ribbonAction{{padding:4px 8px;font-weight:600}}
+          QPushButton#matchedSwitch{{background:#FFFFFF;border:1px solid #BCC7D1;border-radius:15px;padding:4px 12px;color:#56616F;font-weight:700}}
+          QPushButton#matchedSwitch:checked{{background:#DDF6E9;border-color:#169868;color:#096941}}
           QPushButton:hover{{border-color:{RED};background:#FFF9FA}} QPushButton#primary{{background:{RED};color:white;border:0;font-weight:700;padding:7px 12px}}
           QFrame#resultRibbon{{background:#FFFFFF;border:1px solid #D9DEE5;border-radius:8px}}
           QFrame#ribbonGroup{{background:#FFFFFF;border-right:1px solid #E5E7EB}}
@@ -579,8 +666,8 @@ class Window(QMainWindow):
             return
         current=splitter.sizes()
         wanted=responsive_split_widths(splitter.width(),
-                    self._preferred_inspector_width, panel_min=280,
-                    panel_max=480, documents_min=420)
+                    self._preferred_inspector_width, panel_min=260,
+                    panel_max=430, documents_min=560)
         if len(current)==2 and abs(current[1]-wanted[1])>3:
             splitter.setSizes(wanted)
         # The panels must be allowed to scroll internally on smaller screens.
@@ -644,21 +731,247 @@ class Window(QMainWindow):
                 else 'background:white;color:#333;border:1px solid #D8DADF;font-weight:600;'
             )
 
+    def toggle_matched_values(self, enabled):
+        """Switch BOTH result tabs between proven equal fields and discrepancies.
+
+        Only the presentation changes: self.diffs, apply checkboxes, correction
+        notes, Stage-2 validation outcomes and PDF source files stay untouched.
+        """
+        self.match_switch.setText('●  Sama: ON' if enabled else '○  Sama: OFF')
+        for viewer in (self.ref_view,self.exam_view):
+            viewer.show_matches=bool(enabled)
+            if viewer.pdf:
+                viewer.render()
+        if self.has_compared:
+            if enabled:
+                self._difference_filter=self.filter.currentText()
+            self.populate()
+            if not enabled and self.filter.findText(self._difference_filter)>=0:
+                self.filter.setCurrentText(self._difference_filter)
+            if not enabled:
+                self.detail.setText('Pilih ketidaksesuaian untuk melihat detail.')
+            if hasattr(self,'export_annotation_search'):
+                self.export_annotation_search.clear()
+            self._refresh_export_annotations()
+            self.status.setText(f'Panel: {"Nilai Sama" if enabled else "Nilai Berbeda"} · '
+                f'{len(self._visible_match_records())} parameter cocok terverifikasi · '
+                f'{len(self.diffs)} temuan berbeda. Catatan Koreksi tetap tersimpan.')
+            self._log_event('matched_value_visibility', {'enabled':bool(enabled),
+                'matched_fields':len(self._visible_match_records())})
+
+    def _visible_match_records(self):
+        """Never display a green success for a field now marked as a problem."""
+        problem={getattr(d,'field','') for d in self.diffs}
+        problem.update(field for field,rec in self.hybrid_stage2_records.items()
+            if rec.get('outcome')=='override_stage1' and
+               rec.get('status') in ('MISMATCH','PERLU_VERIFIKASI'))
+        return [rec for rec in self.verified_matches if rec.get('field') not in problem]
+
+    def _populate_matched_results(self):
+        """Read-only Tahap 1 matched values. No correction checkboxes or IDs."""
+        self.list.blockSignals(True)
+        self.list.clear()
+        self.filter.blockSignals(True)
+        self.filter.clear()
+        self.filter.addItems(['Semua', 'Sama'])
+        self.filter.blockSignals(False)
+        records=self._visible_match_records() if self.has_compared else []
+        if not records:
+            item=QTreeWidgetItem(['Tidak ada nilai sama yang telah terverifikasi.'
+                if self.has_compared else 'Jalankan Bandingkan untuk melihat nilai sama.'])
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self.list.addTopLevelItem(item)
+        for number,rec in enumerate(records,1):
+            field=rec['field']
+            source=str(rec.get('reference_text','')).strip()
+            examined=str(rec.get('examined_text','')).strip()
+            snippet=' '.join((examined or source).split())[:88]
+            parent=QTreeWidgetItem([f'#{number:02d}  ✓ {field}  ·  Sesuai'])
+            parent.setData(0,Qt.ItemDataRole.UserRole,('matched',field))
+            parent.setForeground(0,QBrush(QColor('#08764A')))
+            parent.setToolTip(0,'Nilai sama · tidak dapat dipilih untuk koreksi')
+            self.list.addTopLevelItem(parent)
+            child=QTreeWidgetItem([f'#{number:02d}  Sama  —  {snippet or "Lihat area hijau pada PDF"}'])
+            child.setData(0,Qt.ItemDataRole.UserRole,('matched',field))
+            child.setToolTip(0, f'RUJUKAN:\n{source or "(lihat stabilo pada PDF)"}\n\nDIPERIKSA:\n{examined or "(lihat stabilo pada PDF)"}')
+            parent.addChild(child)
+            parent.setExpanded(True)
+        self.list.blockSignals(False)
+        self.detail.setText(f'{len(records)} parameter cocok terverifikasi. Klik parameter untuk melihat nilai di PDF.'
+                            if records else 'Hanya nilai yang pasti cocok ditampilkan. Field tidak terbaca tidak dianggap sama.')
+
+    def _navigate_matched_field(self, field):
+        rec=next((x for x in self._visible_match_records() if x.get('field')==field),None)
+        if rec is None:return
+        for viewer,key in ((self.ref_view,'ref_page'),(self.exam_view,'exam_page')):
+            page=rec.get(key)
+            if isinstance(page,int) and viewer.pdf and 0<=page<len(viewer.pdf):
+                viewer.goto(page)
+        a=rec.get('reference_text','') or '(teks tidak disimpan di sesi lama; lihat stabilo hijau)'
+        b=rec.get('examined_text','') or '(teks tidak disimpan di sesi lama; lihat stabilo hijau)'
+        number=next((i for i,match in enumerate(self._visible_match_records(),1) if match.get('field')==field),None)
+        label=f'#{number:02d}  ' if number is not None else ''
+        self.detail.setText(f'{label}✓ {field} · Nilai sama\n\nRujukan: {a[:600]}\n\nDiperiksa: {b[:600]}')
+        self._log_event('match_navigate', {'field':field})
+
+    def _navigate_stage2_result(self, item):
+        data=item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(data,tuple) or len(data)<2:return
+        mode,field=data[:2]
+        if mode=='matched':
+            self._navigate_matched_field(field)
+        elif mode in ('difference','annotation'):
+            index=next((i for i,d in enumerate(self.diffs) if getattr(d,'field','')==field),None)
+            if index is not None:self.navigate(index)
+
     def reset_comparison(self):
         """Invalidate comparison artifacts whenever inputs or preset change."""
         self.diffs=[];self.reference=[];self.examined=[];self.reference_raw=[]
         self.has_compared=False
-        self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
+        self.ref_marks=[];self.exam_marks=[];self.ref_match_marks=[];self.exam_match_marks=[];self.matched_fields=set();self.verified_matches=[];self.ref_pages={};self.exam_pages={}
         self.active_scope=set();self.uncertain=[];self.rule_groups={}
         self.editor_text=None;self.editor_initial=None;self.editor_source=None
         self.note_overrides={};self._reference_profile_actual=None;self._reference_field_map={};self.waybill_mode=False;self.hybrid_stage2_records={};self.stage2_annotations={};self.stage2_visibility={};self._stage1_baseline=None;self.audit_events=[];self._session_file=None
         self.autosave_timer.stop()
         self.list.clear()
+        if hasattr(self,'export_annotation_list'):
+            self.export_annotation_list.clear()
+        if hasattr(self,'ref_view'):
+            self.ref_view.match_marks=[];self.exam_view.match_marks=[]
         self.detail.setText('Dokumen atau parameter berubah. Jalankan perbandingan baru.')
         for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(False)
 
+    def pick_reference(self):
+        """Select a reference SWB or the PDF SI+PL pair in a single modal."""
+        dlg=QDialog(self)
+        dlg.setWindowTitle('Pilih Jenis Dokumen Rujukan')
+        dlg.resize(660,390)
+        layout=QVBoxLayout(dlg)
+        title=QLabel('Jenis dokumen rujukan')
+        title.setStyleSheet('font-size:15px;font-weight:700')
+        layout.addWidget(title)
+        layout.addWidget(QLabel('Pilih SWB seperti biasa, atau gabungkan Shipping Instruction dan Packing List.'))
+        swb_radio=QRadioButton('SWB — satu dokumen rujukan')
+        pair_radio=QRadioButton('Packing List (PL) + Shipping Instruction (SI) — dua PDF')
+        swb_radio.setChecked(self.reference_mode!='pl_si')
+        pair_radio.setChecked(self.reference_mode=='pl_si')
+        layout.addWidget(swb_radio)
+        layout.addWidget(pair_radio)
+        selected={'swb':self.ref_path if self.reference_mode=='swb' else None,
+                  'si':self.si_path,'pl':self.pl_path}
+        choices=QStackedWidget()
+        swb_page=QWidget();swb_lay=QHBoxLayout(swb_page)
+        swb_button=QPushButton('Upload dokumen SWB…')
+        swb_name=QLabel(selected['swb'].name if selected['swb'] else 'Belum ada file')
+        swb_name.setWordWrap(True)
+        swb_lay.addWidget(swb_button);swb_lay.addWidget(swb_name,1)
+        choices.addWidget(swb_page)
+        pair_page=QWidget();pair_lay=QVBoxLayout(pair_page)
+        upload_cols=QHBoxLayout()
+        pair_names={}
+        for key,caption in (('pl','Packing List (PL)'),('si','Shipping Instruction (SI)')):
+            panel=QFrame()
+            panel.setFrameShape(QFrame.Shape.StyledPanel)
+            panel_lay=QVBoxLayout(panel)
+            panel_lay.addWidget(QLabel(caption))
+            btn=QPushButton('Upload '+('SI' if key=='si' else 'PL')+' (.pdf)…')
+            btn.setMinimumHeight(36)
+            lbl=QLabel(selected[key].name if selected[key] else 'Belum ada file PDF')
+            lbl.setWordWrap(True)
+            lbl.setMinimumHeight(36)
+            panel_lay.addWidget(btn);panel_lay.addWidget(lbl)
+            pair_names[key]=lbl
+            # QPushButton.clicked passes a `checked: bool` argument.
+            # Keep it separate from the captured file key; otherwise clicking
+            # the button writes selected[False] instead of selected['si'/'pl'].
+            def choose_pdf(_checked=False, *, k=key, label=lbl):
+                name,_=QFileDialog.getOpenFileName(dlg,'Pilih '+('SI' if k=='si' else 'PL'),'','PDF (*.pdf)')
+                if name:
+                    picked=Path(name)
+                    selected[k]=picked
+                    label.setText(picked.name)
+            btn.clicked.connect(choose_pdf)
+            upload_cols.addWidget(panel,1)
+        pair_lay.addLayout(upload_cols)
+        tip=QLabel('SI: identitas, rute, muatan, berat.  PL: container, seal, invoice, tanggal.\n'
+                   'Tanggal PL adalah metadata; tidak disamakan dengan tanggal terbit SWB.')
+        tip.setWordWrap(True)
+        tip.setStyleSheet('color:#52525B')
+        pair_lay.addWidget(tip)
+        choices.addWidget(pair_page)
+        swb_radio.toggled.connect(lambda checked:choices.setCurrentIndex(0 if checked else 1))
+        choices.setCurrentIndex(0 if swb_radio.isChecked() else 1)
+        def choose_swb():
+            name,_=QFileDialog.getOpenFileName(dlg,'Pilih SWB rujukan','','Dokumen (*.pdf *.docx *.doc)')
+            if name:
+                selected['swb']=Path(name)
+                swb_name.setText(selected['swb'].name)
+        swb_button.clicked.connect(choose_swb)
+        layout.addWidget(choices)
+        buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
+        layout.addWidget(buttons)
+        def accept():
+            try:
+                if swb_radio.isChecked():
+                    path=selected['swb']
+                    if not path:raise ValueError('Pilih file SWB rujukan.')
+                    preview_dir=self.work/'ref_preview';preview_dir.mkdir(exist_ok=True)
+                    preview=make_preview(path,preview_dir)
+                    with fitz.open(preview) as doc:
+                        if not len(doc):raise ValueError('SWB rujukan tidak memiliki halaman.')
+                    new_mode='swb';si=pl=None;records={};meta={}
+                else:
+                    si=selected['si'];pl=selected['pl']
+                    if not si or not pl:raise ValueError('Upload kedua file PDF SI dan PL.')
+                    records,meta=extract_pl_si(si,pl)
+                    if meta['conflicting_invoice']:
+                        raise ValueError('Invoice SI dan PL berbeda: '
+                            +meta['invoice_si']+' ≠ '+meta['invoice_pl']
+                            +'. Periksa sumber sebelum melanjutkan.')
+                    preview=self.work/'reference_si_pl_merged.pdf'
+                    merge_pdf(si,pl,preview)
+                    path=preview;new_mode='pl_si'
+                self.ref_view.load(preview,[])
+            except Exception as exc:
+                QMessageBox.warning(dlg,'Rujukan tidak valid',str(exc))
+                return
+            previous_reference_mode=self.reference_mode
+            self.ref_path=Path(path);self.reference_mode=new_mode
+            self.si_path=si;self.pl_path=pl
+            self._pl_si_records=records;self._pl_si_meta=meta
+            self.ref_btn.setText('Rujukan: '+('SI + PL' if new_mode=='pl_si' else path.name))
+            self.ref_btn.setToolTip('SI: '+str(si)+'\nPL: '+str(pl) if new_mode=='pl_si' else str(path))
+            self.ref_view.heading.setText('DOKUMEN RUJUKAN'+(' — SI + PL' if new_mode=='pl_si' else ''))
+            self.ref_view.heading.setToolTip(self.ref_view.heading.text())
+            self.reset_comparison()
+            # Preserve the selected source information after invalidating results.
+            self._pl_si_records=records;self._pl_si_meta=meta
+            if new_mode=='pl_si' and self.exam_path is not None:
+                from cross_carrier import detect_reference_profile
+                detected=detect_reference_profile(self.exam_path)
+                if detected in PROFILE_LABELS and not str(self.rule_mode.currentData()).startswith('waybill'):
+                    ix=self.rule_mode.findData(detected)
+                    if ix>=0:self.rule_mode.setCurrentIndex(ix)
+            self.mode_changed()
+            if new_mode=='pl_si' and str(self.rule_mode.currentData()).startswith('waybill'):
+                from cross_carrier import reference_field_map
+                supported=reference_field_map(profile_field_names(self.rule_mode.currentData()),set(records))
+                self.waybill_fields=set(supported)|PL_SI_EXTRA_FIELDS
+            elif new_mode=='swb' and previous_reference_mode=='pl_si' and str(self.rule_mode.currentData()).startswith('waybill'):
+                self.waybill_fields=set(profile_field_names(self.rule_mode.currentData()))
+            self.status.setText('Rujukan '+('SI + PL terpilih' if new_mode=='pl_si' else 'SWB terpilih')+'. Jalankan Bandingkan.')
+            self.ref_view.marks=[]
+            if self.ref_view.pdf:self.ref_view.render()
+            self._queue_workspace_fit()
+            dlg.accept()
+        buttons.accepted.connect(accept)
+        buttons.rejected.connect(dlg.reject)
+        dlg.exec()
+
     def pick(self,side):
+        if side == 'ref':
+            return self.pick_reference()
         name,_=QFileDialog.getOpenFileName(self,'Pilih dokumen','','Dokumen (*.docx *.pdf *.doc)')
         if not name:return
         path=Path(name)
@@ -675,13 +988,21 @@ class Window(QMainWindow):
             return
         if side=='ref':
             self.ref_path=path;self.ref_btn.setText('Rujukan: '+path.name)
+            self.ref_btn.setToolTip(str(path))
         else:
             self.exam_path=path;self.exam_btn.setText('Diperiksa: '+path.name)
+            self.exam_btn.setToolTip(str(path))
+            if self.reference_mode=='pl_si' and not str(self.rule_mode.currentData()).startswith('waybill'):
+                from cross_carrier import detect_reference_profile
+                detected=detect_reference_profile(path)
+                ix=self.rule_mode.findData(detected)
+                if ix>=0:self.rule_mode.setCurrentIndex(ix)
         self.reset_comparison()
         # Preserve the newly loaded preview, but remove all previous markers.
         self.ref_view.marks=[];self.exam_view.marks=[]
         if self.ref_view.pdf:self.ref_view.render()
         if self.exam_view.pdf:self.exam_view.render()
+        self._queue_workspace_fit()
         self.status.setText('Dokumen baru dimuat. Pilih parameter lalu klik Bandingkan Dokumen.')
 
     def mode_changed(self,*args):
@@ -689,7 +1010,7 @@ class Window(QMainWindow):
         self.scope_btn.setEnabled(not is_waybill)
         self.waybill_btn.setEnabled(is_waybill)
         if hasattr(self, 'reference_profile_bar'):
-            self.reference_profile_bar.setVisible(is_waybill)
+            self.reference_profile_bar.setVisible(is_waybill and self.reference_mode!='pl_si')
             if self.wizard_stack.currentIndex() == 1:
                 self._sync_wizard_toolbar_height()
                 QTimer.singleShot(0, self._sync_wizard_toolbar_height)
@@ -697,7 +1018,12 @@ class Window(QMainWindow):
             # Do not carry a field subset from another shipping-line template.
             selected_profile = self.rule_mode.currentData()
             if getattr(self, '_previous_waybill_preset', None) != selected_profile:
-                self.waybill_fields = set(profile_field_names(selected_profile))
+                if self.reference_mode=='pl_si' and self._pl_si_records:
+                    from cross_carrier import reference_field_map
+                    compatible=reference_field_map(profile_field_names(selected_profile),set(self._pl_si_records))
+                    self.waybill_fields=set(compatible)|PL_SI_EXTRA_FIELDS
+                else:
+                    self.waybill_fields = set(profile_field_names(selected_profile))
         self._previous_waybill_preset = self.rule_mode.currentData()
         self.all_scope.setEnabled(not is_waybill)
         if hasattr(self,'ref_view') and hasattr(self,'list'):
@@ -710,13 +1036,18 @@ class Window(QMainWindow):
     def choose_waybill(self):
         dlg=QDialog(self);dlg.setWindowTitle('Parameter Waybill');dlg.resize(540,600)
         layout=QVBoxLayout(dlg)
-        layout.addWidget(QLabel('Pilih field berdasarkan SWB dokumen diperiksa (PDF B).\nDokumen rujukan (PDF A) boleh berupa surat/tabel berbeda layout jika label dan nilainya tersedia.'))
+        layout.addWidget(QLabel('Pilih field berdasarkan SWB dokumen diperiksa (PDF B).\nRujukan SWB, atau pasangan SI + PL, dibaca dengan aturan masing-masing.'))
         items=QListWidget()
-        for name in profile_field_names(self.rule_mode.currentData()):
+        fields=profile_field_names(self.rule_mode.currentData())
+        if self.reference_mode=='pl_si':
+            fields=list(dict.fromkeys(fields+sorted(PL_SI_EXTRA_FIELDS)))
+        for name in fields:
             item=QListWidgetItem(name)
             item.setFlags(item.flags()|Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields or name not in {n for n,_ in FIELDS} else Qt.CheckState.Unchecked)
+            item.setCheckState(Qt.CheckState.Checked if name in self.waybill_fields else Qt.CheckState.Unchecked)
             items.addItem(item)
+        if self.reference_mode=='pl_si':
+            layout.addWidget(QLabel('Tanggal Packing List dibaca sebagai metadata, bukan tanggal terbit SWB.'))
         controls=QHBoxLayout()
         select_all=QPushButton('Pilih Semua')
         clear_all=QPushButton('Hapus Semua')
@@ -772,17 +1103,40 @@ class Window(QMainWindow):
             if self.waybill_mode:
                 if not self.waybill_fields:raise ValueError('Pilih minimal satu field Waybill.')
                 a=self.work/'ref';b=self.work/'exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
+                if self.reference_mode=='pl_si':
+                    self._pl_si_records,self._pl_si_meta=extract_pl_si(self.si_path,self.pl_path)
+                    if self._pl_si_meta['conflicting_invoice']:
+                        raise ValueError('Invoice pada SI dan PL berbeda; verifikasi dokumen rujukan sebelum membandingkan.')
+                    self.ref_path=self.work/('reference_si_pl_run_'+uuid.uuid4().hex[:10]+'.pdf')
+                    merge_pdf(self.si_path,self.pl_path,self.ref_path)
                 refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
+                matched=[]
                 self.diffs,locations=compare_waybills(
                     refpdf, exampdf,
                     self.waybill_fields & set(profile_field_names(self.rule_mode.currentData())),
                     profile=self.rule_mode.currentData(),
-                    reference_profile=self.reference_profile_combo.currentData())
+                    reference_profile=self.reference_profile_combo.currentData(),
+                    reference_records=(self._pl_si_records if self.reference_mode=='pl_si' else None),
+                    matched_locations=matched)
+                if self.reference_mode=='pl_si':
+                    extra_selected=(self.waybill_fields & PL_SI_EXTRA_FIELDS) - set(profile_field_names(self.rule_mode.currentData()))
+                    supplementary,missing=additional_claims(exampdf,self.rule_mode.currentData(),self._pl_si_records,
+                                                             selected=extra_selected, matched_locations=matched)
+                    for difference,position in supplementary:
+                        self.diffs.append(difference)
+                        locations.append(position)
+                    self._pl_si_meta['extra_review']=missing
+
                 self._reference_profile_actual = swb_rules.REFERENCE_EXTRACTION_DIAGNOSTICS.get(
                     'reference_profile', self.rule_mode.currentData())
                 self._reference_field_map = dict(swb_rules.REFERENCE_EXTRACTION_DIAGNOSTICS.get('field_map', {}))
+                if self.reference_mode=='pl_si':
+                    self._reference_field_map = {
+                        field: self._pl_si_records[source].get('source','SI')+':'+source
+                        for field,source in self._reference_field_map.items()
+                        if isinstance(source,str) and source in self._pl_si_records}
                 self.reference=[];self.examined=[];self.active_scope=set();self.uncertain=[];self.mode='waybill'
-                self.ref_marks=[];self.exam_marks=[];self.ref_pages={};self.exam_pages={}
+                self.ref_marks=[];self.exam_marks=[];self.ref_match_marks=[];self.exam_match_marks=[];self.matched_fields=set();self.verified_matches=[];self.ref_pages={};self.exam_pages={}
                 for i,(ref_loc,exam_loc) in enumerate(locations,1):
                     for loc,marks,pages,side in ((ref_loc,self.ref_marks,self.ref_pages,'ref'),(exam_loc,self.exam_marks,self.exam_pages,'exam')):
                         for hit in loc.get('hits',[]):
@@ -790,13 +1144,23 @@ class Window(QMainWindow):
                         if loc.get('hits'):
                             pages[i]=loc['hits'][0]['page']
                 self.sort_differences()
+                self._set_verified_matches(matched)
                 self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks)
                 self.populate();self.enable_results();self.show_step(1)
                 a_profile = (PROFILE_LABELS.get(self._reference_profile_actual,
                              'Surat/tabel fleksibel' if self._reference_profile_actual == 'flexible'
+                             else 'SI + PL' if self._reference_profile_actual == 'pl_si'
                              else str(self._reference_profile_actual)))
                 b_profile = PROFILE_LABELS.get(self.rule_mode.currentData(), self.rule_mode.currentText())
                 self.status.setText(f'Rujukan A: {a_profile} → Diperiksa B: {b_profile} · {len(self.waybill_fields)} field · {len(self.diffs)} temuan.')
+                if self.reference_mode=='pl_si':
+                    self.status.setText(self.status.text()+
+                        ' · Tanggal PL: '+self._pl_si_meta.get('pl_date','-'))
+                    if self._pl_si_meta.get('extra_review'):
+                        self.status.setText(self.status.text()+
+                            f' · {len(self._pl_si_meta["extra_review"])} field tambahan perlu verifikasi')
+                        self.status.setToolTip('Field tambahan perlu verifikasi: '+
+                                               '; '.join(self._pl_si_meta['extra_review']))
                 if swb_rules.REFERENCE_NEEDS_REVIEW:
                     unresolved=sorted(set(swb_rules.REFERENCE_NEEDS_REVIEW))
                     self.status.setText(self.status.text() + f' · {len(unresolved)} field perlu verifikasi')
@@ -812,6 +1176,8 @@ class Window(QMainWindow):
                     diag_path.write_text(json.dumps({'ocr_status': ocr_message, 'field': swb_rules.GSL_DIAGNOSTICS, 'belum_tervalidasi': swb_rules.GSL_SKIPPED_FIELDS},ensure_ascii=False,indent=2,default=pdf_json_default),encoding='utf-8')
                     self.status.setToolTip('Diagnostik OCR disimpan: '+str(diag_path))
                 return
+            if self.reference_mode=='pl_si':
+                raise ValueError('Rujukan PL + SI hanya tersedia dalam mode SWB. Pilih preset SWB untuk Dokumen B.')
             self.reference_raw,_=read_blocks(self.ref_path,self.work);self.examined,_=read_blocks(self.exam_path,self.work)
             parsed=parse_embedded(self.reference_raw);self.reference=parsed.blocks;self.rule_groups=parsed.groups
             self.mode=self.rule_mode.currentData()
@@ -827,16 +1193,48 @@ class Window(QMainWindow):
             refpdf=make_preview(self.ref_path,a);exampdf=make_preview(self.exam_path,b)
             rm,self.ref_pages,rmiss=locate(refpdf,self.diffs,'ref');em,self.exam_pages,emiss=locate(exampdf,self.diffs,'exam')
             self.ref_marks=rm;self.exam_marks=em;self.sort_differences()
+            matched=compare_equal_paragraphs(refpdf,exampdf,self.reference,self.examined,self.active_scope)
+            self._set_verified_matches(matched)
             self.ref_view.load(refpdf,self.ref_marks);self.exam_view.load(exampdf,self.exam_marks);self.populate();self.enable_results();self.show_step(1)
             self.status.setText(f'Cakupan {len(self.active_scope)}/{len(self.reference)} blok · {len(self.diffs)} perbedaan · {len(self.uncertain)} tidak terpetakan (perlu tinjauan) · Penanda {len(rm)}/{len(em)}.')
         except Exception as e:
             self.status.setText('Pemeriksaan gagal — tidak ada hasil baru yang dapat diekspor.')
             QMessageBox.critical(self,'Gagal',str(e))
+    def _set_verified_matches(self, matched):
+        """Retain independent green coordinates AND read-only text for both tabs."""
+        from matched_values import number_match_marks
+        problem_fields={getattr(item,'field','') for item in self.diffs}
+        trusted=[item for item in matched if item.get('field') not in problem_fields]
+        self.matched_fields={item['field'] for item in trusted}
+        self.ref_match_marks=match_marks(trusted,side='ref')
+        self.exam_match_marks=match_marks(trusted,side='exam')
+        self.verified_matches=[]
+        seen=set()
+        for item in trusted:
+            field=item['field']
+            if field in seen:continue
+            seen.add(field)
+            self.verified_matches.append({
+                'field':field,
+                'reference_text':str(item.get('reference_text','')),
+                'examined_text':str(item.get('examined_text','')),
+                'ref_page':int(item['ref_hits'][0]['page']) if item.get('ref_hits') else None,
+                'exam_page':int(item['exam_hits'][0]['page']) if item.get('exam_hits') else None,
+            })
+        self.ref_view.match_marks=number_match_marks(self.ref_match_marks, self.verified_matches)
+        self.exam_view.match_marks=number_match_marks(self.exam_match_marks, self.verified_matches)
+        self.ref_view.show_matches=self.exam_view.show_matches=self.match_switch.isChecked()
+
     def enable_results(self):
         self.has_compared=True
         self._log_event('comparison_completed', {'findings':len(self.diffs), 'mode':self.rule_mode.currentData()})
         for button in (self.apply_btn,self.pdf_btn,self.report_btn,self.editor_btn,self.notes_btn,self.hybrid_btn,self.inspector_validation_btn):
             button.setEnabled(True)
+        # run() populates the tree before has_compared becomes True. When ON,
+        # refresh once more now so verified matches appear immediately.
+        if self.match_switch.isChecked():
+            self.populate()
+        self._refresh_export_annotations()
 
     def _snapshot_stage1(self):
         """Immutable in-memory starting point for all Stage-2 promotions in one comparison."""
@@ -881,22 +1279,53 @@ class Window(QMainWindow):
             item.setHidden(text.casefold().strip() not in item.text().casefold())
 
     def _refresh_export_annotations(self):
+        """Tahap 2 mirrors the switch; editable Stage-2 flags stay intact."""
         if not hasattr(self, 'export_annotation_list'):return
-        items = self.export_annotation_list
+        items=self.export_annotation_list
         items.blockSignals(True)
-        previous = self.export_annotation_search.text() if hasattr(self, 'export_annotation_search') else ''
+        previous=self.export_annotation_search.text() if hasattr(self,'export_annotation_search') else ''
         items.clear()
-        for field in sorted(self.stage2_annotations, key=str.casefold):
-            item = QListWidgetItem(field)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Checked if self.stage2_visibility.get(field, True) else Qt.CheckState.Unchecked)
-            items.addItem(item)
+        same=self.match_switch.isChecked()
+        if same:
+            matches=self._visible_match_records() if self.has_compared else []
+            self.export_annotation_search.setPlaceholderText('Cari nilai yang sama…')
+            self.stage2_info.setText('Nilai cocok hasil Bandingkan (hanya baca).\nTidak ada checkbox koreksi; Validasi Tahap 2 tetap tersedia.')
+            for number,rec in enumerate(matches,1):
+                field=rec['field'];snippet=' '.join(str(rec.get('examined_text','') or rec.get('reference_text','')).split())[:65]
+                item=QListWidgetItem(f'#{number:02d}  ✓ {field}  —  {snippet or "Sama"}')
+                item.setData(Qt.ItemDataRole.UserRole,('matched',field))
+                item.setForeground(QBrush(QColor('#08764A')))
+                item.setToolTip(f'RUJUKAN:\n{rec.get("reference_text", "")}\n\nDIPERIKSA:\n{rec.get("examined_text", "")}')
+                items.addItem(item)
+        else:
+            self.export_annotation_search.setPlaceholderText('Cari nilai berbeda / anotasi Tahap 2…')
+            self.stage2_info.setText('Nilai berbeda/perlu koreksi.\nCheckbox tersedia hanya untuk field dengan anotasi Tahap 2.')
+            by_field={}
+            for d in self.diffs:
+                field=getattr(d,'field','') or 'Lainnya'
+                by_field[field]=by_field.get(field,0)+1
+            for field in sorted(by_field,key=str.casefold):
+                number=by_field[field]
+                annotated=field in self.stage2_annotations
+                item=QListWidgetItem(f'{field}  ·  {number} temuan'+('  ·  Anotasi Tahap 2' if annotated else ''))
+                item.setData(Qt.ItemDataRole.UserRole,('annotation' if annotated else 'difference',field))
+                if annotated:
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(Qt.CheckState.Checked if self.stage2_visibility.get(field, True) else Qt.CheckState.Unchecked)
+                items.addItem(item)
+        if not items.count():
+            empty=QListWidgetItem('Belum ada nilai sama terverifikasi.' if same else 'Tidak ada perbedaan yang perlu dikoreksi.')
+            empty.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            items.addItem(empty)
         items.blockSignals(False)
         self._filter_export_annotations(previous)
 
     def _export_annotation_toggled(self, item):
-        self.stage2_visibility[item.text()] = item.checkState() == Qt.CheckState.Checked
-        self._log_event('annotation_visibility', {'field':item.text(), 'visible':self.stage2_visibility[item.text()]})
+        data=item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(data,tuple) or data[0]!='annotation':return
+        field=data[1]
+        self.stage2_visibility[field] = item.checkState() == Qt.CheckState.Checked
+        self._log_event('annotation_visibility', {'field':field, 'visible':self.stage2_visibility[field]})
         self._refresh_main_annotation_previews()
 
     def _visible_stage2_marks(self, side):
@@ -914,6 +1343,13 @@ class Window(QMainWindow):
             viewer.stage2_marks = self._visible_stage2_marks(side)
             viewer.mark_field_map = {i + 1: getattr(d, 'field', '') for i,d in enumerate(self.diffs)}
             viewer.hidden_stage2_fields = {f for f, checked in self.stage2_visibility.items() if not checked}
+            changed = {field for field, data in self.hybrid_stage2_records.items()
+                       if data.get('outcome') == 'override_stage1'
+                       and data.get('status') in ('MISMATCH','PERLU_VERIFIKASI')}
+            green_source = self.ref_match_marks if side=='ref' else self.exam_match_marks
+            viewer.match_marks = number_match_marks(
+                [mark for mark in green_source if mark.get('field') not in changed],
+                self._visible_match_records())
             if viewer.pdf:
                 viewer.render()
 
@@ -966,6 +1402,7 @@ class Window(QMainWindow):
                 pages[i] = page
         self.sort_differences()
         self.populate()
+        self._refresh_export_annotations()
         # Re-render annotated pages from active findings. Existing source PDFs stay immutable.
         if self.ref_view.pdf and self.exam_view.pdf:
             self.ref_view.load(self.ref_view.pdf.name, self.ref_marks)
@@ -1034,6 +1471,9 @@ class Window(QMainWindow):
 
     def populate(self,*args):
         """Group discrepancies by Waybill field; filter individual findings, not parents."""
+        if self.match_switch.isChecked():
+            self._populate_matched_results()
+            return
         self.list.blockSignals(True)
         self.list.clear()
         # Show only discrepancy categories that actually exist in current findings.
@@ -1124,6 +1564,8 @@ class Window(QMainWindow):
             self.status.setText('Pilihan koreksi berubah. Editor sebelumnya tetap tersimpan; buka Editor untuk meninjaunya.')
     def navigate_tree(self,item,column):
         index=item.data(0,Qt.ItemDataRole.UserRole)
+        if isinstance(index,tuple) and index and index[0]=='matched':
+            self._navigate_matched_field(index[1]);return
         if not isinstance(index,int):
             # The disclosure arrow controls expansion; clicks on the parent
             # should not unexpectedly collapse all of its findings.
@@ -1142,6 +1584,7 @@ class Window(QMainWindow):
         return True
     def export_waybill_pdf(self, target, side='exam'):
         """Export a non-destructive annotated copy of either source PDF."""
+        from matched_values import layout_match_markers
         if side not in ('ref', 'exam'):
             raise ValueError('Sisi dokumen tidak dikenal.')
         viewer = self.ref_view if side == 'ref' else self.exam_view
@@ -1150,57 +1593,87 @@ class Window(QMainWindow):
             raise ValueError('Preview PDF belum tersedia. Jalankan perbandingan dahulu.')
         with fitz.open() as output:
             output.insert_pdf(viewer.pdf)
-            for mark in marks:
-                # If a Stage-2 field is unchecked in Hasil & Ekspor, hide its
-                # Stage-1 mark as well so all markings obey the same switch.
-                mid = mark.get('id', 0)
-                if 1 <= mid <= len(self.diffs):
-                    field = getattr(self.diffs[mid - 1], 'field', '')
-                    if field in self.stage2_visibility and not self.stage2_visibility[field]:
+            # Match and mismatch annotations are mutually exclusive. The
+            # numbered badges are identical in meaning to the Tahap 1/2 rows.
+            if self.match_switch.isChecked():
+                from collections import defaultdict
+                equal_by_page=defaultdict(list)
+                for equal in viewer.match_marks:
+                    page_num=equal.get('page',-1)
+                    if 0 <= page_num < len(output):
+                        equal_by_page[page_num].append(equal)
+                for pno, equals in equal_by_page.items():
+                    page=output[pno]
+                    for equal in equals:
+                        rect=fitz.Rect(equal['rect']) & page.rect
+                        if rect.is_empty or rect.is_infinite:continue
+                        shape=page.new_shape()
+                        shape.draw_rect(rect)
+                        shape.finish(color=(0.04,0.54,0.33),fill=(0.09,0.64,0.42),
+                                     fill_opacity=0.20,stroke_opacity=0.50,width=0.42)
+                        shape.commit(overlay=True)
+                    for badge in layout_match_markers(page,equals):
+                        rect=badge['rect']
+                        page.draw_rect(rect,color=(0.03,0.46,0.29),
+                                       fill=(0.03,0.46,0.29),width=0.3,overlay=True)
+                        label=f"#{badge['id']:02d}"
+                        fontsize=7.2
+                        width=fitz.get_text_length(label,fontname='hebo',fontsize=fontsize)
+                        page.insert_text((rect.x0+(rect.width-width)/2,rect.y0+9.5),
+                                         label,fontname='hebo',fontsize=fontsize,
+                                         color=(1,1,1),overlay=True)
+            else:
+                for mark in marks:
+                    # If a Stage-2 field is unchecked in Hasil & Ekspor, hide its
+                    # Stage-1 mark as well so all markings obey the same switch.
+                    mid = mark.get('id', 0)
+                    if 1 <= mid <= len(self.diffs):
+                        field = getattr(self.diffs[mid - 1], 'field', '')
+                        if field in self.stage2_visibility and not self.stage2_visibility[field]:
+                            continue
+                    pno = mark['page']
+                    if pno < 0 or pno >= len(output):
                         continue
-                pno = mark['page']
-                if pno < 0 or pno >= len(output):
-                    continue
-                rect = fitz.Rect(mark['rect'])
-                if rect.is_empty or rect.is_infinite:
-                    continue
-                kind = mark.get('kind', 'Perubahan')
-                rgb = {'Perubahan': (0.91, 0.29, 0.37),
-                       'Hilang': (0.96, 0.73, 0.24),
-                       'Berlebih': (0.22, 0.60, 0.91)}.get(kind, (0.91, 0.29, 0.37))
-                page = output[pno]
-                shape = page.new_shape()
-                shape.draw_rect(rect)
-                shape.finish(color=rgb, fill=rgb, fill_opacity=0.24,
-                             stroke_opacity=0.60, width=0.4)
-                shape.commit(overlay=True)
-            # Export selected second-stage rectangles as vector annotations.
-            for mark in self._visible_stage2_marks(side):
-                pno = mark['page']
-                if pno < 0 or pno >= len(output):continue
-                rect = fitz.Rect(mark['rect']) & output[pno].rect
-                if rect.is_empty or rect.is_infinite:continue
-                shape = output[pno].new_shape()
-                shape.draw_rect(rect)
-                shape.finish(color=(0.09, 0.42, 0.63), fill=(0.09, 0.42, 0.63),
-                             fill_opacity=0.10, stroke_opacity=0.85, width=0.8)
-                shape.commit(overlay=True)
-                # Sticky correction note, only for an explicitly confirmed override;
-                # unconfirmed batch coordinates are merely visual candidates.
-                record = self.hybrid_stage2_records.get(mark['field'], {})
-                if record.get('outcome') == 'override_stage1':
-                    original = record.get('A', {}).get('text_final', '')
-                    examined = record.get('B', {}).get('text_final', '')
-                    if original != examined or record.get('status') == 'PERLU_VERIFIKASI':
-                        note = ('DocMatch Tahap 2 | ' + mark['field'] + '\n'
-                                + 'Rujukan: ' + original[:500] + '\n'
-                                + 'Diperiksa: ' + examined[:500])
-                        pos = fitz.Point(min(rect.x1 + 3, output[pno].rect.x1 - 12),
-                                         min(max(12, rect.y0), output[pno].rect.y1 - 12))
-                        try:
-                            output[pno].add_text_annot(pos, note)
-                        except (ValueError, RuntimeError):
-                            pass
+                    rect = fitz.Rect(mark['rect'])
+                    if rect.is_empty or rect.is_infinite:
+                        continue
+                    kind = mark.get('kind', 'Perubahan')
+                    rgb = {'Perubahan': (0.91, 0.29, 0.37),
+                           'Hilang': (0.96, 0.73, 0.24),
+                           'Berlebih': (0.22, 0.60, 0.91)}.get(kind, (0.91, 0.29, 0.37))
+                    page = output[pno]
+                    shape = page.new_shape()
+                    shape.draw_rect(rect)
+                    shape.finish(color=rgb, fill=rgb, fill_opacity=0.24,
+                                 stroke_opacity=0.60, width=0.4)
+                    shape.commit(overlay=True)
+                # Export selected second-stage rectangles as vector annotations.
+                for mark in self._visible_stage2_marks(side):
+                    pno = mark['page']
+                    if pno < 0 or pno >= len(output):continue
+                    rect = fitz.Rect(mark['rect']) & output[pno].rect
+                    if rect.is_empty or rect.is_infinite:continue
+                    shape = output[pno].new_shape()
+                    shape.draw_rect(rect)
+                    shape.finish(color=(0.09, 0.42, 0.63), fill=(0.09, 0.42, 0.63),
+                                 fill_opacity=0.10, stroke_opacity=0.85, width=0.8)
+                    shape.commit(overlay=True)
+                    # Sticky correction note, only for an explicitly confirmed override;
+                    # unconfirmed batch coordinates are merely visual candidates.
+                    record = self.hybrid_stage2_records.get(mark['field'], {})
+                    if record.get('outcome') == 'override_stage1':
+                        original = record.get('A', {}).get('text_final', '')
+                        examined = record.get('B', {}).get('text_final', '')
+                        if original != examined or record.get('status') == 'PERLU_VERIFIKASI':
+                            note = ('DocMatch Tahap 2 | ' + mark['field'] + '\n'
+                                    + 'Rujukan: ' + original[:500] + '\n'
+                                    + 'Diperiksa: ' + examined[:500])
+                            pos = fitz.Point(min(rect.x1 + 3, output[pno].rect.x1 - 12),
+                                             min(max(12, rect.y0), output[pno].rect.y1 - 12))
+                            try:
+                                output[pno].add_text_annot(pos, note)
+                            except (ValueError, RuntimeError):
+                                pass
             meta = dict(output.metadata or {})
             meta['subject'] = 'DocMatch Waybill - salinan audit beranotasi, bukan koreksi otomatis'
             output.set_metadata(meta)
@@ -1729,16 +2202,36 @@ class Window(QMainWindow):
         # carrier SWBs use the independently detected source carrier's labels.
         note_profile = self.rule_mode.currentData() if profile == 'flexible' else profile
         note_field_map = getattr(self, '_reference_field_map', None) or None
-        reference_values = (address_reference_values(source_path, note_profile, address_fields,
-                                                     field_map=note_field_map)
-                            if address_fields else {})
+        if getattr(self,'reference_mode','swb')=='pl_si':
+            from cross_carrier import reference_field_map
+            raw_map=reference_field_map(profile_field_names(self.rule_mode.currentData()),
+                                        set(self._pl_si_records))
+            reference_values={field:self._pl_si_records[source]['text']
+                              for field in address_fields
+                              for source in (raw_map.get(field),)
+                              if isinstance(source,str) and source in self._pl_si_records
+                              and self._pl_si_records[source].get('valid')}
+        else:
+            reference_values = (address_reference_values(source_path, note_profile, address_fields,
+                                                         field_map=note_field_map)
+                                if address_fields else {})
         # v1.8.35.6: Cargo/weight notes use the same independent PDF A, but keep its
         # visually aligned rows. No change to the comparison/marker engine.
         structured_fields = {item['field'] for item in grouped.values()
                              if is_structured_field(item['field'])}
         if structured_fields:
-            reference_values.update(structured_reference_values(
-                source_path, note_profile, structured_fields, field_map=note_field_map))
+            if getattr(self,'reference_mode','swb')=='pl_si':
+                from cross_carrier import reference_field_map
+                raw_map=reference_field_map(profile_field_names(self.rule_mode.currentData()),
+                                            set(self._pl_si_records))
+                reference_values.update({field:self._pl_si_records[source]['text']
+                                         for field in structured_fields
+                                         for source in (raw_map.get(field),)
+                                         if isinstance(source,str) and source in self._pl_si_records
+                                         and self._pl_si_records[source].get('valid')})
+            else:
+                reference_values.update(structured_reference_values(
+                    source_path, note_profile, structured_fields, field_map=note_field_map))
         result = []
         for item in grouped.values():
             item['numbers'].sort()
@@ -1926,7 +2419,9 @@ class Window(QMainWindow):
         meta.style = 'Table Grid'
         meta.alignment = WD_TABLE_ALIGNMENT.CENTER
         metadata = [
-            ('Dokumen rujukan', str(self.ref_path.name if self.ref_path else '-')),
+            ('Dokumen rujukan', ('SI: '+self.si_path.name+' + PL: '+self.pl_path.name)
+             if self.reference_mode=='pl_si' and self.si_path and self.pl_path
+             else str(self.ref_path.name if self.ref_path else '-')),
             ('Dokumen diperiksa', str(self.exam_path.name if self.exam_path else '-')),
             ('Jumlah temuan', str(len(self.diffs))),
             ('Keterangan', 'Laporan ini bersifat audit. Dokumen asli tidak diubah oleh DocMatch.'),
@@ -2052,8 +2547,10 @@ class Window(QMainWindow):
         # A valid Stage-2 review may have no discrepancy at all, yet still
         # contain checked location highlights that the user wants to export.
         has_annotations = bool(self._visible_stage2_marks('ref') or self._visible_stage2_marks('exam'))
-        if not self.diffs and not has_annotations:
-            QMessageBox.warning(self, 'Belum ada data', 'Belum ada temuan atau penanda Tahap 2 untuk diekspor.')
+        has_matching_marks = bool(self.waybill_mode and self.match_switch.isChecked()
+                                  and (self.ref_match_marks or self.exam_match_marks))
+        if not self.diffs and not has_annotations and not has_matching_marks:
+            QMessageBox.warning(self, 'Belum ada data', 'Belum ada temuan atau penanda untuk diekspor.')
             return
         if self.waybill_mode:
             selected = self.choose_pdf_export_documents()
@@ -2133,14 +2630,22 @@ class Window(QMainWindow):
             raise ValueError('Pilih dan bandingkan dua dokumen terlebih dahulu')
         baseline=self._snapshot_stage1()
         return {
-            'documents':{'reference':fingerprint(self.ref_path),'examined':fingerprint(self.exam_path)},
+            'documents':{'reference':fingerprint(self.si_path if self.reference_mode=='pl_si' else self.ref_path),
+                         'examined':fingerprint(self.exam_path),
+                         'reference_mode':self.reference_mode,
+                         **({'packing_list':fingerprint(self.pl_path)} if self.reference_mode=='pl_si' else {})},
             'comparison':{'waybill_mode':self.waybill_mode,'preset':self.rule_mode.currentData(),
                 'reference_profile_selection':self.reference_profile_combo.currentData(),
+                'pl_si_metadata':self._pl_si_meta if self.reference_mode=='pl_si' else {},
                 'reference_profile_detected':self._reference_profile_actual,
                 'reference_field_map':self._reference_field_map,
                 'fields':sorted(self.waybill_fields),'diffs':[asdict(x) for x in self.diffs],
                 'baseline_diffs':[asdict(x) for x in baseline['diffs']],
                 'ref_marks':self._marks_for_json(self.ref_marks),'exam_marks':self._marks_for_json(self.exam_marks),
+                'ref_match_marks':self._marks_for_json(self.ref_match_marks),
+                'exam_match_marks':self._marks_for_json(self.exam_match_marks),
+                'matched_fields':sorted(self.matched_fields),
+                'verified_matches':self.verified_matches,
                 'baseline_ref_marks':self._marks_for_json(baseline['ref_marks']),
                 'baseline_exam_marks':self._marks_for_json(baseline['exam_marks']),
                 'ref_pages':self.ref_pages,'exam_pages':self.exam_pages,
@@ -2152,7 +2657,8 @@ class Window(QMainWindow):
             'stage2':{'records':self.hybrid_stage2_records, 'annotations':self.stage2_annotations,
                 'visibility':self.stage2_visibility},
             'viewer':{'ref_page':self.ref_view.page,'exam_page':self.exam_view.page,
-                'ref_zoom':self.ref_view.zoom,'exam_zoom':self.exam_view.zoom},
+                'ref_zoom':self.ref_view.zoom,'exam_zoom':self.exam_view.zoom,
+                'show_matches':self.match_switch.isChecked()},
             'audit':self.audit_events,
         }
 
@@ -2199,15 +2705,30 @@ class Window(QMainWindow):
         data=payload['comparison']; stage2=payload['stage2']; view=payload.get('viewer',{})
         # Prepare and validate PDF previews before mutating the current workspace.
         ref=Path(payload['documents']['reference']['path']);exam=Path(payload['documents']['examined']['path'])
+        ref_mode=payload['documents'].get('reference_mode','swb')
+        pl=Path(payload['documents']['packing_list']['path']) if ref_mode=='pl_si' else None
         a=self.work/'session_ref';b=self.work/'session_exam';a.mkdir(exist_ok=True);b.mkdir(exist_ok=True)
-        refpdf=make_preview(ref,a); exampdf=make_preview(exam,b)
+        if ref_mode=='pl_si':
+            if fingerprint(pl)['sha256']!=payload['documents']['packing_list']['sha256']:
+                raise ValueError('Packing List berubah sejak sesi disimpan; muat ulang rujukan.')
+            records,meta=extract_pl_si(ref,pl)
+            virtual_ref=self.work/'session_si_pl.pdf'
+            merge_pdf(ref,pl,virtual_ref)
+            refpdf=virtual_ref
+        else:
+            records={};meta={};refpdf=make_preview(ref,a)
+        exampdf=make_preview(exam,b)
         with fitz.open(refpdf) as rd,fitz.open(exampdf) as ed:
             if not len(rd) or not len(ed):raise ValueError('PDF sesi kosong')
         self._restoring_session=True
         try:
             self.reset_comparison()
-            self.ref_path=ref; self.exam_path=exam
-            self.ref_btn.setText('Rujukan: '+ref.name);self.exam_btn.setText('Diperiksa: '+exam.name)
+            self.ref_path=refpdf if ref_mode=='pl_si' else ref
+            self.reference_mode=ref_mode;self.si_path=ref if ref_mode=='pl_si' else None
+            self.pl_path=pl;self._pl_si_records=records;self._pl_si_meta=meta
+            self.ref_view.heading.setText('DOKUMEN RUJUKAN'+(' — SI + PL' if ref_mode=='pl_si' else ''))
+            self.exam_path=exam
+            self.ref_btn.setText('Rujukan: '+('SI + PL' if ref_mode=='pl_si' else ref.name));self.exam_btn.setText('Diperiksa: '+exam.name)
             preset=data['preset']; ix=self.rule_mode.findData(preset)
             if ix<0:raise ValueError('Mode parameter sesi tidak tersedia: '+str(preset))
             self.rule_mode.blockSignals(True)
@@ -2226,6 +2747,23 @@ class Window(QMainWindow):
             cls=WaybillDifference if self.waybill_mode else Difference
             self.diffs=[cls(**d) for d in data['diffs']]
             self.ref_marks=self._marks_for_json(data['ref_marks']); self.exam_marks=self._marks_for_json(data['exam_marks'])
+            self.ref_match_marks=self._marks_for_json(data.get('ref_match_marks',[]))
+            self.exam_match_marks=self._marks_for_json(data.get('exam_match_marks',[]))
+            self.matched_fields=set(data.get('matched_fields',[]))
+            self.verified_matches=list(data.get('verified_matches', []))
+            if not self.verified_matches and self.matched_fields:
+                # Backward compatibility: v1.8.36.2 saved green geometry but no text.
+                self.verified_matches=[{'field':field,
+                    'ref_page':next((m['page'] for m in self.ref_match_marks if m.get('field')==field),None),
+                    'exam_page':next((m['page'] for m in self.exam_match_marks if m.get('field')==field),None),
+                    'reference_text':'','examined_text':''} for field in sorted(self.matched_fields)]
+            self.ref_view.match_marks=number_match_marks(self.ref_match_marks, self._visible_match_records())
+            self.exam_view.match_marks=number_match_marks(self.exam_match_marks, self._visible_match_records())
+            self.match_switch.blockSignals(True)
+            self.match_switch.setChecked(bool(view.get('show_matches',False)))
+            self.match_switch.setText('●  Sama: ON' if self.match_switch.isChecked() else '○  Sama: OFF')
+            self.match_switch.blockSignals(False)
+            self.ref_view.show_matches=self.exam_view.show_matches=self.match_switch.isChecked()
             self.ref_pages={int(k):v for k,v in data['ref_pages'].items()};self.exam_pages={int(k):v for k,v in data['exam_pages'].items()}
             self._stage1_baseline={
               'diffs':[cls(**d) for d in data['baseline_diffs']],
@@ -2276,7 +2814,11 @@ class Window(QMainWindow):
             QMessageBox.warning(self,'Belum ada laporan','Jalankan perbandingan dan/atau validasi tahap kedua.');return
         name,_=QFileDialog.getSaveFileName(self,'Simpan laporan','docmatch_laporan.json','JSON (*.json)')
         if name:
-            report={'reference':str(self.ref_path),'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_preset':self.rule_mode.currentData() if self.waybill_mode else None,'reference_profile':getattr(self,'_reference_profile_actual',None) if self.waybill_mode else None,'reference_field_map':getattr(self,'_reference_field_map',{}) if self.waybill_mode else {},'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'audit_history':self.audit_events,'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','hybrid_stage2':{'annotations':self.stage2_annotations,'visible_fields':[f for f in self.stage2_annotations if self.stage2_visibility.get(f,True)],'records':list(self.hybrid_stage2_records.values()),'stage1_baseline_preserved_for_audit':True,'active_findings_updated':self.waybill_mode,'original_differences':[asdict(d) for d in (self._stage1_baseline or {}).get('diffs',[])]},'differences':[
+            report={'reference':str(self.si_path if self.reference_mode=='pl_si' else self.ref_path),
+                    'reference_mode':self.reference_mode,
+                    'reference_sources':({'shipping_instruction':str(self.si_path),'packing_list':str(self.pl_path),
+                                          'pl_date':self._pl_si_meta.get('pl_date')} if self.reference_mode=='pl_si' else {}),
+                    'examined':str(self.exam_path),'scope':{'mode':self.mode,'waybill_preset':self.rule_mode.currentData() if self.waybill_mode else None,'reference_profile':getattr(self,'_reference_profile_actual',None) if self.waybill_mode else None,'reference_field_map':getattr(self,'_reference_field_map',{}) if self.waybill_mode else {},'waybill_fields':sorted(self.waybill_fields) if self.waybill_mode else [],'selected_reference_blocks':[i+1 for i in sorted(self.active_scope)],'unchecked_reference_blocks':[i+1 for i in range(len(self.reference)) if i not in self.active_scope],'unmapped_reference_blocks':[i+1 for i in self.uncertain],'embedded_groups':self.rule_groups},'audit_history':self.audit_events,'manual_editor':{'used':self.editor_text is not None,'edited_text':self.editor_text if self.editor_text is not None else None},'limitations':'Waybill: ekspor PDF merupakan salinan audit beranotasi, bukan koreksi otomatis; DOCX berisi tabel temuan editable dan gambar halaman. Ekstraksi berbasis template ANL belum universal. Mode umum membangun ulang teks.','hybrid_stage2':{'annotations':self.stage2_annotations,'visible_fields':[f for f in self.stage2_annotations if self.stage2_visibility.get(f,True)],'records':list(self.hybrid_stage2_records.values()),'stage1_baseline_preserved_for_audit':True,'active_findings_updated':self.waybill_mode,'original_differences':[asdict(d) for d in (self._stage1_baseline or {}).get('diffs',[])]},'differences':[
                 {**asdict(d),'number':i+1,'reference_page':self.ref_pages.get(i+1, -1)+1 if i+1 in self.ref_pages else None,
                  'examined_page':self.exam_pages.get(i+1,-1)+1 if i+1 in self.exam_pages else None} for i,d in enumerate(self.diffs)]}
             Path(name).write_text(json.dumps(report,ensure_ascii=False,indent=2,default=pdf_json_default),encoding='utf-8')

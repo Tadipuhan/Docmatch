@@ -1,187 +1,81 @@
 {
   "schema_version": 1,
-  "saved_at": "2026-11-24T07:26:47.885375+00:00",
+  "saved_at": "2026-11-25T02:03:37.768280+00:00",
   "documents": {
     "reference": {
-      "path": "C:\\Users\\tata.dico\\Documents\\SWB\\ONEYJKTG94494400_draft_20261109183141.pdf",
-      "bytes": 101641,
-      "sha256": "6f2993d866f2190b4ad697b86803f24aea9b1d5e0a2a35bb61aa351dad0a776f"
+      "path": "C:\\Users\\tata.dico\\Downloads\\SI 26YA1A.pdf",
+      "bytes": 755144,
+      "sha256": "4fc157fc241d35a49e7b179e48034cafe4918a83bc65d71e2f270fd1bc682fdc"
     },
     "examined": {
-      "path": "C:\\Users\\tata.dico\\Documents\\SWB\\EVG_FINIAL SWB 261K3A.PDF",
-      "bytes": 259310,
-      "sha256": "5e36cb8c40eac529e5ffe5a67b8f65d66df907b944e0cefe67635668f656fc7f"
+      "path": "C:\\Users\\tata.dico\\Downloads\\SWB 26YA1A.pdf",
+      "bytes": 99816,
+      "sha256": "ede2a83f268c5fecf5fee2563ef5e1638bb78b88cdafd48e08ba1d207fc6c165"
+    },
+    "reference_mode": "pl_si",
+    "packing_list": {
+      "path": "C:\\Users\\tata.dico\\Downloads\\PL 26YA1A.pdf",
+      "bytes": 73779,
+      "sha256": "7e58e98ccf975d7c020ef116c085c8ab4346adc3d17e20ce8cae8fdd78923ee8"
     }
   },
   "comparison": {
     "waybill_mode": true,
-    "preset": "waybill_evergreen",
+    "preset": "waybill_one",
     "reference_profile_selection": "auto",
-    "reference_profile_detected": "waybill_one",
+    "pl_si_metadata": {
+      "si": "C:\\Users\\tata.dico\\Downloads\\SI 26YA1A.pdf",
+      "pl": "C:\\Users\\tata.dico\\Downloads\\PL 26YA1A.pdf",
+      "pl_date": "October 24, 2026",
+      "invoice_pl": "26YA1A",
+      "invoice_si": "26YA1A",
+      "container": "CAJU5672554",
+      "seal": "ID54061AB",
+      "conflicting_invoice": false,
+      "extra_review": []
+    },
+    "reference_profile_detected": "pl_si",
     "reference_field_map": {
-      "Weight & Measurement": [
-        "Gross Weight",
-        "Gross Measurement"
-      ],
-      "Pre-Carriage": "Pre-Carriage",
-      "Port of Loading": "Port of Loading",
-      "Consignee": "Consignee",
-      "Shipper": "Shipper",
-      "Port of Discharge": "Port of Discharge",
-      "Container & Seal": "Container & Seal",
-      "Place of Receipt": "Place of Receipt",
-      "Place & Date of Issue": "Place & Date of Issue",
-      "Notify Party": "Notify Party",
-      "Vessel": "Vessel / Voyage",
-      "Place of Delivery": "Place of Delivery",
-      "Voyage Number": "Vessel / Voyage",
-      "Export References": "Export References",
-      "Freight & Charges": "Freight & Charges",
-      "Cargo Description": "Cargo Description",
-      "Waybill Number": "Waybill Number"
+      "Port of Discharge": "SI:Port of Discharge",
+      "Notify Party": "SI:Notify Party",
+      "Booking Number": "SI:Booking Number",
+      "Port of Loading": "SI:Port of Loading",
+      "Vessel / Voyage": "SI:Vessel / Voyage",
+      "Gross Measurement": "SI:Gross Measurement",
+      "Consignee": "SI:Consignee",
+      "Container & Seal": "PL:Container & Seal",
+      "Quantity": "SI:Quantity",
+      "Shipper": "SI:Shipper",
+      "Gross Weight": "SI:Gross Weight",
+      "Cargo Description": "SI:Cargo Description"
     },
     "fields": [
-      "Additional Clauses",
-      "Attached List",
+      "Booking Number",
       "Cargo Description",
       "Consignee",
       "Container & Seal",
-      "Document Number",
-      "Export References",
-      "Freight & Charges",
+      "Gross Measurement",
+      "Gross Weight",
+      "HS Code",
+      "Invoice Number",
+      "Net Weight",
       "Notify Party",
-      "Place & Date of Issue",
-      "Place of Delivery",
-      "Place of Receipt",
       "Port of Discharge",
       "Port of Loading",
-      "Pre-Carriage",
+      "Quantity",
       "Shipper",
-      "Vessel",
-      "Voyage Number",
-      "Waybill Number",
-      "Weight & Measurement"
+      "Vessel / Voyage"
     ],
     "diffs": [
       {
         "kind": "Perubahan",
         "reference_index": null,
         "examined_index": null,
-        "reference_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL.",
-        "examined_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL, KAB. KARAWANG * PHONE NO. : (+62-267) 440 201",
+        "reference_text": "PT. BRIDGESTONE TIRE INDONESIA\nKAWASAN INDUSTRI SURYACIPTA.\nJL. SURYA UTAMA KAV 8-13,\nKEL. KUTAMEKAR, KEC. CIAMPEL,\nKAB. KARAWANG\nPROP. JAWA BARAT 41363\nPHONE NO. : (+62-267) 440 201\nTax ID : 001.000.118.8-092.000",
+        "examined_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL.\nKAB. KARAWANG\nPROP. JAWA BARAT 41363\nPHONE NO. : (+62-267) 440201\nTAX ID : 001.000.118.8-092.000",
         "detail": "Cross-carrier: Shipper (A) ↔ Shipper (B); Perubahan",
         "apply": false,
         "field": "Shipper"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "BRIDGESTONE CORPORATION 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN",
-        "examined_text": "BRIDGESTONE CORPORATION 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN TEL: 042-342-4524 JREP_TIRE_IMPORT.TSG.BSJ@BRIDGESTON E.COM",
-        "detail": "Cross-carrier: Consignee (A) ↔ Consignee (B); Perubahan",
-        "apply": false,
-        "field": "Consignee"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "SBS TIRE FRONTIER CO., LTD. 17-1, NISHI-SHINJUKU 8-CHOME, SHINJUKU-KU, TOKYO 160-6125, JAPAN TEL:+81 50-1732-5964/",
-        "examined_text": "BRIDGESTONE LOGISTICS CO., LTD. 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN TEL: +813-6836-3623 ATTN. MR. SHIBATA, MR. KIDO DL-BSB.IMPORT-TIRE@BRIDGESTONE.COM",
-        "detail": "Cross-carrier: Notify Party (A) ↔ Notify Party (B); Perubahan",
-        "apply": false,
-        "field": "Notify Party"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "NAGOYA TOWER",
-        "examined_text": "EVER CLEVER",
-        "detail": "Cross-carrier: Vessel / Voyage (A) ↔ Vessel (B); Perubahan",
-        "apply": false,
-        "field": "Vessel"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "033N",
-        "examined_text": "0136-084N",
-        "detail": "Cross-carrier: Vessel / Voyage (A) ↔ Voyage Number (B); Perubahan",
-        "apply": false,
-        "field": "Voyage Number"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "TOKYO, JAPAN",
-        "examined_text": "HAKATA, JAPAN",
-        "detail": "Cross-carrier: Port of Discharge (A) ↔ Port of Discharge (B); Perubahan",
-        "apply": false,
-        "field": "Port of Discharge"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "TOKYO, JAPAN",
-        "examined_text": "HAKATA, JAPAN",
-        "detail": "Cross-carrier: Place of Delivery (A) ↔ Place of Delivery (B); Perubahan",
-        "apply": false,
-        "field": "Place of Delivery"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "17133.640KGS / 142.390CBM",
-        "examined_text": "69.7800 CBM 8,154.200 KGS",
-        "detail": "Cross-carrier: Gross Weight + Gross Measurement (A) ↔ Weight & Measurement (B); Perubahan",
-        "apply": false,
-        "field": "Weight & Measurement"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "FFAU6911060 / ID87236AA ONEU7606980 / ID87241AA",
-        "examined_text": "EGSU6380840/40H/EMCWRC4104/ 1 X 40H N/M, N/N",
-        "detail": "Cross-carrier: Container & Seal (A) ↔ Container & Seal (B); Perubahan",
-        "apply": false,
-        "field": "Container & Seal"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "2X40' HQ 3,270 PIECES 3,270 T (TYRES) OF BRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA INVOICE NO. 26XB4A HS CODE: 4011.10.00, 4011.80-010 NET WEIGHT : 17,133.640 KGS",
-        "examined_text": "1420 PCS (HI-CUBE) 1,420 PIECES 1,420 T (TYRES) BRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA INVOICE NO. 261K3A HS CODE: 4011.10.00, 4011.20.11, 4011.80.11 NET WEIGHT: 8,154.200 KGS",
-        "detail": "Cross-carrier: Cargo Description (A) ↔ Cargo Description (B); Perubahan",
-        "apply": false,
-        "field": "Cargo Description"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "ONEYJKTG94494400",
-        "examined_text": "EGLV 080500704774",
-        "detail": "Cross-carrier: Waybill Number (A) ↔ Waybill Number (B); Perubahan",
-        "apply": false,
-        "field": "Waybill Number"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "JAKARTA 05 NOV 2026",
-        "examined_text": "JAKARTA JAN.26,2026",
-        "detail": "Cross-carrier: Place & Date of Issue (A) ↔ Place & Date of Issue (B); Perubahan",
-        "apply": false,
-        "field": "Place & Date of Issue"
       }
     ],
     "baseline_diffs": [
@@ -189,121 +83,11 @@
         "kind": "Perubahan",
         "reference_index": null,
         "examined_index": null,
-        "reference_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL.",
-        "examined_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL, KAB. KARAWANG * PHONE NO. : (+62-267) 440 201",
+        "reference_text": "PT. BRIDGESTONE TIRE INDONESIA\nKAWASAN INDUSTRI SURYACIPTA.\nJL. SURYA UTAMA KAV 8-13,\nKEL. KUTAMEKAR, KEC. CIAMPEL,\nKAB. KARAWANG\nPROP. JAWA BARAT 41363\nPHONE NO. : (+62-267) 440 201\nTax ID : 001.000.118.8-092.000",
+        "examined_text": "PT. BRIDGESTONE TIRE INDONESIA KAWASAN INDUSTRI SURYACIPTA. JL. SURYA UTAMA KAV 8-13, KEL. KUTAMEKAR, KEC. CIAMPEL.\nKAB. KARAWANG\nPROP. JAWA BARAT 41363\nPHONE NO. : (+62-267) 440201\nTAX ID : 001.000.118.8-092.000",
         "detail": "Cross-carrier: Shipper (A) ↔ Shipper (B); Perubahan",
         "apply": false,
         "field": "Shipper"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "BRIDGESTONE CORPORATION 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN",
-        "examined_text": "BRIDGESTONE CORPORATION 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN TEL: 042-342-4524 JREP_TIRE_IMPORT.TSG.BSJ@BRIDGESTON E.COM",
-        "detail": "Cross-carrier: Consignee (A) ↔ Consignee (B); Perubahan",
-        "apply": false,
-        "field": "Consignee"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "SBS TIRE FRONTIER CO., LTD. 17-1, NISHI-SHINJUKU 8-CHOME, SHINJUKU-KU, TOKYO 160-6125, JAPAN TEL:+81 50-1732-5964/",
-        "examined_text": "BRIDGESTONE LOGISTICS CO., LTD. 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN TEL: +813-6836-3623 ATTN. MR. SHIBATA, MR. KIDO DL-BSB.IMPORT-TIRE@BRIDGESTONE.COM",
-        "detail": "Cross-carrier: Notify Party (A) ↔ Notify Party (B); Perubahan",
-        "apply": false,
-        "field": "Notify Party"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "NAGOYA TOWER",
-        "examined_text": "EVER CLEVER",
-        "detail": "Cross-carrier: Vessel / Voyage (A) ↔ Vessel (B); Perubahan",
-        "apply": false,
-        "field": "Vessel"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "033N",
-        "examined_text": "0136-084N",
-        "detail": "Cross-carrier: Vessel / Voyage (A) ↔ Voyage Number (B); Perubahan",
-        "apply": false,
-        "field": "Voyage Number"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "TOKYO, JAPAN",
-        "examined_text": "HAKATA, JAPAN",
-        "detail": "Cross-carrier: Port of Discharge (A) ↔ Port of Discharge (B); Perubahan",
-        "apply": false,
-        "field": "Port of Discharge"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "TOKYO, JAPAN",
-        "examined_text": "HAKATA, JAPAN",
-        "detail": "Cross-carrier: Place of Delivery (A) ↔ Place of Delivery (B); Perubahan",
-        "apply": false,
-        "field": "Place of Delivery"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "17133.640KGS / 142.390CBM",
-        "examined_text": "69.7800 CBM 8,154.200 KGS",
-        "detail": "Cross-carrier: Gross Weight + Gross Measurement (A) ↔ Weight & Measurement (B); Perubahan",
-        "apply": false,
-        "field": "Weight & Measurement"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "FFAU6911060 / ID87236AA ONEU7606980 / ID87241AA",
-        "examined_text": "EGSU6380840/40H/EMCWRC4104/ 1 X 40H N/M, N/N",
-        "detail": "Cross-carrier: Container & Seal (A) ↔ Container & Seal (B); Perubahan",
-        "apply": false,
-        "field": "Container & Seal"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "2X40' HQ 3,270 PIECES 3,270 T (TYRES) OF BRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA INVOICE NO. 26XB4A HS CODE: 4011.10.00, 4011.80-010 NET WEIGHT : 17,133.640 KGS",
-        "examined_text": "1420 PCS (HI-CUBE) 1,420 PIECES 1,420 T (TYRES) BRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA INVOICE NO. 261K3A HS CODE: 4011.10.00, 4011.20.11, 4011.80.11 NET WEIGHT: 8,154.200 KGS",
-        "detail": "Cross-carrier: Cargo Description (A) ↔ Cargo Description (B); Perubahan",
-        "apply": false,
-        "field": "Cargo Description"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "ONEYJKTG94494400",
-        "examined_text": "EGLV 080500704774",
-        "detail": "Cross-carrier: Waybill Number (A) ↔ Waybill Number (B); Perubahan",
-        "apply": false,
-        "field": "Waybill Number"
-      },
-      {
-        "kind": "Perubahan",
-        "reference_index": null,
-        "examined_index": null,
-        "reference_text": "JAKARTA 05 NOV 2026",
-        "examined_text": "JAKARTA JAN.26,2026",
-        "detail": "Cross-carrier: Place & Date of Issue (A) ↔ Place & Date of Issue (B); Perubahan",
-        "apply": false,
-        "field": "Place & Date of Issue"
       }
     ],
     "ref_marks": [
@@ -311,10 +95,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          70.42929077148438,
-          47.937599182128906,
-          81.67684173583984
+          110.63795471191406,
+          190.36871337890625,
+          123.0171890258789,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -323,10 +107,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          53.92799758911133,
-          70.42929077148438,
-          119.64959716796875,
-          81.67684173583984
+          125.17388153076172,
+          190.36871337890625,
+          183.12796020507812,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -335,10 +119,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.6399917602539,
-          70.42929077148438,
-          149.5295867919922,
-          81.67684173583984
+          185.13455200195312,
+          190.36871337890625,
+          203.27284240722656,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -347,10 +131,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          155.51998901367188,
-          70.42929077148438,
-          209.28958129882812,
-          81.67684173583984
+          205.27944946289062,
+          190.36871337890625,
+          249.06100463867188,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -359,10 +143,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          81.08529663085938,
-          71.84159851074219,
-          92.33284759521484
+          110.63995361328125,
+          200.9697723388672,
+          152.84242248535156,
+          210.1829833984375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -371,10 +155,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          77.83199310302734,
-          81.08529663085938,
-          125.62559509277344,
-          92.33284759521484
+          155.30258178710938,
+          200.9697723388672,
+          194.90457153320312,
+          210.1829833984375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -383,10 +167,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          131.61599731445312,
-          81.08529663085938,
-          197.33758544921875,
-          92.33284759521484
+          197.32345581054688,
+          200.9697723388672,
+          253.18899536132812,
+          210.1829833984375
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -395,10 +179,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          91.74124145507812,
-          47.937599182128906,
-          102.9887924194336
+          110.63795471191406,
+          212.32888793945312,
+          121.12117767333984,
+          221.14523315429688
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -407,10 +191,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          53.92799758911133,
-          91.74124145507812,
-          83.79359436035156,
-          102.9887924194336
+          123.35687255859375,
+          212.32888793945312,
+          150.3431396484375,
+          221.14523315429688
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -419,10 +203,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          89.78399658203125,
-          91.74124145507812,
-          119.64959716796875,
-          102.9887924194336
+          152.42872619628906,
+          212.32888793945312,
+          180.12599182128906,
+          221.14523315429688
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -431,10 +215,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.6399917602539,
-          91.74124145507812,
-          143.5535888671875,
-          102.9887924194336
+          182.13258361816406,
+          212.32888793945312,
+          197.90087890625,
+          221.14523315429688
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -443,10 +227,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          149.5439910888672,
-          91.74124145507812,
-          179.4095916748047,
-          102.9887924194336
+          200.0655059814453,
+          212.32888793945312,
+          217.9747314453125,
+          221.14523315429688
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -455,10 +239,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          102.39724731445312,
-          53.91360092163086,
-          113.6447982788086
+          110.63795471191406,
+          223.24917602539062,
+          127.5991439819336,
+          232.06552124023438
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -467,10 +251,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          59.90399932861328,
-          102.39724731445312,
-          119.64959716796875,
-          113.6447982788086
+          129.75584411621094,
+          223.24917602539062,
+          180.84487915039062,
+          232.06552124023438
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -479,10 +263,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.6399917602539,
-          102.39724731445312,
-          149.5295867919922,
-          113.6447982788086
+          183.00157165527344,
+          223.24917602539062,
+          201.3057861328125,
+          232.06552124023438
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -491,850 +275,202 @@
         "id": 1,
         "page": 0,
         "rect": [
-          155.51998901367188,
-          102.39724731445312,
-          203.31358337402344,
-          113.6447982788086
+          203.54148864746094,
+          223.24917602539062,
+          240.17361450195312,
+          232.06552124023438
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          140.19729614257812,
-          95.74559783935547,
-          151.44485473632812
+          110.63795471191406,
+          234.1694793701172,
+          128.46815490722656,
+          242.98582458496094
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          101.73599243164062,
-          140.19729614257812,
-          167.45758056640625,
-          151.44485473632812
+          130.54583740234375,
+          234.1694793701172,
+          176.8158721923828,
+          242.98582458496094
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          150.85324096679688,
-          47.937599182128906,
-          162.10079956054688
+          110.63995361328125,
+          244.65011596679688,
+          136.70278930664062,
+          253.8633270263672
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          53.92799758911133,
-          150.85324096679688,
-          101.72159576416016,
-          162.10079956054688
+          138.95655822753906,
+          244.65011596679688,
+          162.45191955566406,
+          253.8633270263672
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          107.71199798583984,
-          150.85324096679688,
-          155.50558471679688,
-          162.10079956054688
+          164.87904357910156,
+          244.65011596679688,
+          192.8654327392578,
+          253.8633270263672
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          161.49598693847656,
-          150.85324096679688,
-          209.28958129882812,
-          162.10079956054688
+          195.25953674316406,
+          244.65011596679688,
+          218.42469787597656,
+          253.8633270263672
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          161.50924682617188,
-          59.88959884643555,
-          172.75680541992188
+          110.63795471191406,
+          256.0096130371094,
+          138.73020935058594,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          65.87999725341797,
-          161.50924682617188,
-          119.64959716796875,
-          172.75680541992188
+          140.73680114746094,
+          256.0096130371094,
+          154.85401916503906,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
         "page": 0,
         "rect": [
-          125.6399917602539,
-          161.50924682617188,
-          155.50558471679688,
-          172.75680541992188
+          156.9317169189453,
+          256.0096130371094,
+          159.12001037597656,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          207.44528198242188,
-          47.937599182128906,
-          218.69284057617188
+          161.2766876220703,
+          256.0096130371094,
+          195.586181640625,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          53.92799758911133,
-          207.44528198242188,
-          77.81759643554688,
-          218.69284057617188
+          197.61647033691406,
+          256.0096130371094,
+          210.77781677246094,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          83.80799865722656,
-          207.44528198242188,
-          131.60159301757812,
-          218.69284057617188
+          212.86341857910156,
+          256.0096130371094,
+          226.02476501464844,
+          264.8259582519531
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          137.5919952392578,
-          207.44528198242188,
-          161.48158264160156,
-          218.69284057617188
+          110.63865661621094,
+          277.774658203125,
+          126.93274688720703,
+          288.31011962890625
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          167.4720001220703,
-          207.44528198242188,
-          191.36158752441406,
-          218.69284057617188
+          129.61380004882812,
+          277.774658203125,
+          139.07305908203125,
+          288.31011962890625
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          30.023998260498047,
-          218.10128784179688,
-          59.88959884643555,
-          229.34884643554688
+          141.69749450683594,
+          277.774658203125,
+          144.8411407470703,
+          288.31011962890625
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 3,
+        "id": 1,
         "page": 0,
         "rect": [
-          65.87999725341797,
-          218.10128784179688,
-          149.5295867919922,
-          229.34884643554688
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          155.51998901367188,
-          218.10128784179688,
-          203.31358337402344,
-          229.34884643554688
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          30.023998260498047,
-          228.75729370117188,
-          101.72159576416016,
-          240.00485229492188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          107.71199798583984,
-          228.75729370117188,
-          137.5775909423828,
-          240.00485229492188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          143.5679931640625,
-          228.75729370117188,
-          197.33758544921875,
-          240.00485229492188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          203.32798767089844,
-          228.75729370117188,
-          233.19358825683594,
-          240.00485229492188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          30.023998260498047,
-          239.41323852539062,
-          71.84159851074219,
-          250.66079711914062
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          77.83199310302734,
-          239.41323852539062,
-          155.50558471679688,
-          250.66079711914062
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          29.95199966430664,
-          296.3013000488281,
-          55.022396087646484,
-          304.20721435546875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          59.183998107910156,
-          296.3013000488281,
-          80.07839965820312,
-          304.20721435546875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 5,
-        "page": 0,
-        "rect": [
-          84.23999786376953,
-          296.3013000488281,
-          100.9583969116211,
-          304.20721435546875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          29.807998657226562,
-          321.99725341796875,
-          65.64959716796875,
-          333.24481201171875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          71.63999938964844,
-          321.99725341796875,
-          101.50559997558594,
-          333.24481201171875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          185.75999450683594,
-          322.1280212402344,
-          218.1599884033203,
-          332.3160400390625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          223.55999755859375,
-          322.1280212402344,
-          250.5599822998047,
-          332.3160400390625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          27.215999603271484,
-          361.7279968261719,
-          86.61599731445312,
-          371.916015625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          119.80799865722656,
-          362.1600036621094,
-          125.20800018310547,
-          372.3480224609375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          127.58399200439453,
-          361.7279968261719,
-          176.18399047851562,
-          371.916015625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          27.215999603271484,
-          372.3840026855469,
-          86.61599731445312,
-          382.572021484375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          119.80799865722656,
-          372.8160095214844,
-          125.20800018310547,
-          383.0040283203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          127.58399200439453,
-          372.3840026855469,
-          176.18399047851562,
-          382.572021484375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          390.4692687988281,
-          246.72958374023438,
-          401.7168273925781
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          252.71998596191406,
-          390.4692687988281,
-          264.6575927734375,
-          401.7168273925781
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          401.125244140625,
-          246.72958374023438,
-          412.372802734375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          252.71998596191406,
-          401.125244140625,
-          288.56158447265625,
-          412.372802734375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          411.78125,
-          246.72958374023438,
-          423.02880859375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          252.71998596191406,
-          411.78125,
-          258.68157958984375,
-          423.02880859375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          264.6719970703125,
-          411.78125,
-          306.4895935058594,
-          423.02880859375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          312.47998046875,
-          411.78125,
-          324.4176025390625,
-          423.02880859375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          422.437255859375,
-          282.5856018066406,
-          433.684814453125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          288.57598876953125,
-          422.437255859375,
-          318.44158935546875,
-          433.684814453125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          324.4319763183594,
-          422.437255859375,
-          342.3455810546875,
-          433.684814453125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          348.33599853515625,
-          422.437255859375,
-          384.1775817871094,
-          433.684814453125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          433.09326171875,
-          240.7535858154297,
-          444.3408203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          246.74398803710938,
-          433.09326171875,
-          258.68157958984375,
-          444.3408203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          264.6719970703125,
-          433.09326171875,
-          318.44158935546875,
-          444.3408203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          443.749267578125,
-          258.68157958984375,
-          454.996826171875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          264.6719970703125,
-          443.749267578125,
-          282.5856018066406,
-          454.996826171875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          288.57598876953125,
-          443.749267578125,
-          324.4176025390625,
-          454.996826171875
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          454.4052429199219,
-          228.8015899658203,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          234.7919921875,
-          454.4052429199219,
-          264.6575927734375,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          270.6479797363281,
-          454.4052429199219,
-          336.3695983886719,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          342.3599853515625,
-          454.4052429199219,
-          408.08160400390625,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          465.0612487792969,
-          234.777587890625,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          240.7679901123047,
-          465.0612487792969,
-          276.6095886230469,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          282.5999755859375,
-          465.0612487792969,
-          288.56158447265625,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          294.552001953125,
-          465.0612487792969,
-          354.297607421875,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          360.2879943847656,
-          465.0612487792969,
-          378.20159912109375,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          451.8719787597656,
-          390.5026550292969,
-          509.7311706542969,
-          399.54962158203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          532.1519775390625,
-          390.5026550292969,
-          580.3632202148438,
-          399.54962158203125
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 11,
-        "page": 0,
-        "rect": [
-          479.0159912109375,
-          67.33328247070312,
-          574.6176147460938,
-          78.5808334350586
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          488.95196533203125,
-          652.6212768554688,
-          530.7695922851562,
-          663.8687744140625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          488.95196533203125,
-          673.789306640625,
-          500.88958740234375,
-          685.0368041992188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          506.8799743652344,
-          673.789306640625,
-          524.7935791015625,
-          685.0368041992188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          530.7839965820312,
-          673.789306640625,
-          554.673583984375,
-          685.0368041992188
+          147.64495849609375,
+          277.774658203125,
+          246.07025146484375,
+          288.31011962890625
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -1345,1274 +481,12 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          73.19720458984375,
-          39.80000305175781,
-          84.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          46.400001525878906,
-          73.19720458984375,
-          118.99998474121094,
-          84.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          73.19720458984375,
-          152.0,
-          84.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          158.60000610351562,
-          73.19720458984375,
-          218.00006103515625,
-          84.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          20.0,
-          82.04119873046875,
-          66.19999694824219,
-          93.04119873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          72.79999542236328,
-          82.04119873046875,
-          125.59998321533203,
-          93.04119873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          132.19998168945312,
-          82.04119873046875,
-          204.800048828125,
-          93.04119873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          20.0,
-          90.88519287109375,
-          39.80000305175781,
-          101.88519287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          46.400001525878906,
-          90.88519287109375,
-          79.39999389648438,
-          101.88519287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          85.99999237060547,
-          90.88519287109375,
-          118.99998474121094,
-          101.88519287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          90.88519287109375,
-          145.39999389648438,
-          101.88519287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          152.0,
-          90.88519287109375,
-          185.00003051757812,
-          101.88519287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          20.0,
-          99.72930908203125,
-          46.400001525878906,
-          110.72930908203125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          53.0,
-          99.72930908203125,
-          118.99998474121094,
-          110.72930908203125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          99.72930908203125,
-          152.0,
-          110.72930908203125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          158.60000610351562,
-          99.72930908203125,
-          211.40005493164062,
-          110.72930908203125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          20.0,
-          108.57330322265625,
-          46.400001525878906,
-          119.57330322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          53.0,
-          108.57330322265625,
-          105.79998779296875,
-          119.57330322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          112.39998626708984,
-          108.57330322265625,
-          118.99998474121094,
-          119.57330322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          20.0,
-          117.41729736328125,
-          53.0,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          59.599998474121094,
-          117.41729736328125,
-          79.39999389648438,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          85.99999237060547,
-          117.41729736328125,
-          92.59999084472656,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          117.41729736328125,
-          158.60000610351562,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          117.41729736328125,
-          185.00003051757812,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
-          191.60003662109375,
-          117.41729736328125,
-          211.40005493164062,
-          128.41729736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          144.19732666015625,
-          92.59999084472656,
-          155.19732666015625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          144.19732666015625,
-          171.80001831054688,
-          155.19732666015625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          153.04132080078125,
-          39.80000305175781,
-          164.04132080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          46.400001525878906,
-          153.04132080078125,
-          99.19998931884766,
-          164.04132080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          105.79998779296875,
-          153.04132080078125,
-          158.60000610351562,
-          164.04132080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          153.04132080078125,
-          218.00006103515625,
-          164.04132080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          161.88531494140625,
-          53.0,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          59.599998474121094,
-          161.88531494140625,
-          118.99998474121094,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          161.88531494140625,
-          158.60000610351562,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          170.72943115234375,
-          46.400001525878906,
-          181.72943115234375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          53.0,
-          170.72943115234375,
-          132.19998168945312,
-          181.72943115234375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          179.57342529296875,
-          251.00009155273438,
-          190.57342529296875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          188.41741943359375,
-          53.0,
-          199.41741943359375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          207.19744873046875,
-          92.59999084472656,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          207.19744873046875,
-          158.60000610351562,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          207.19744873046875,
-          191.60003662109375,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          198.20004272460938,
-          207.19744873046875,
-          224.60006713867188,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          216.04144287109375,
-          39.80000305175781,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          46.400001525878906,
-          216.04144287109375,
-          99.19998931884766,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          105.79998779296875,
-          216.04144287109375,
-          158.60000610351562,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          216.04144287109375,
-          218.00006103515625,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          224.88543701171875,
-          53.0,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          59.599998474121094,
-          224.88543701171875,
-          118.99998474121094,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          224.88543701171875,
-          158.60000610351562,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          233.72955322265625,
-          46.400001525878906,
-          244.72955322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          53.0,
-          233.72955322265625,
-          145.39999389648438,
-          244.72955322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          242.57354736328125,
-          53.0,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          66.19999694824219,
-          242.57354736328125,
-          85.99999237060547,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          92.59999084472656,
-          242.57354736328125,
-          145.39999389648438,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          152.0,
-          242.57354736328125,
-          171.80001831054688,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          178.4000244140625,
-          242.57354736328125,
-          204.800048828125,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          251.41754150390625,
-          244.40008544921875,
-          262.41754150390625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          20.0,
-          312.19757080078125,
-          46.400001525878906,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          53.0,
-          312.19757080078125,
-          92.59999084472656,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 5,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          312.19757080078125,
-          158.60000610351562,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          20.0,
-          335.19757080078125,
-          66.19999694824219,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          72.79999542236328,
-          335.19757080078125,
-          105.79998779296875,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          187.0,
-          335.19757080078125,
-          233.20004272460938,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          239.800048828125,
-          335.19757080078125,
-          272.8000793457031,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          20.0,
-          403.19720458984375,
-          198.20004272460938,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          152.0,
-          412.69720458984375,
-          158.60000610351562,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          412.69720458984375,
-          171.80001831054688,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          178.4000244140625,
-          412.69720458984375,
-          198.20004272460938,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          20.0,
-          422.19720458984375,
-          46.400001525878906,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          53.0,
-          422.19720458984375,
-          72.79999542236328,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          211.40005493164062,
-          403.19720458984375,
-          237.80007934570312,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          244.40008544921875,
-          403.19720458984375,
-          264.2001037597656,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          284.0001220703125,
-          403.19720458984375,
-          343.4001770019531,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          422.19720458984375,
-          243.00003051757812,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          249.60003662109375,
-          422.19720458984375,
-          289.2000732421875,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          431.69720458984375,
-          243.00003051757812,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          249.60003662109375,
-          431.69720458984375,
-          256.2000427246094,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          262.800048828125,
-          431.69720458984375,
-          309.0000915527344,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          441.19720458984375,
-          282.6000671386719,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          441.19720458984375,
-          322.2001037597656,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          328.80010986328125,
-          441.19720458984375,
-          348.6001281738281,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          355.20013427734375,
-          441.19720458984375,
-          394.8001708984375,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          408.00018310546875,
-          441.19720458984375,
-          434.40020751953125,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          441.0002136230469,
-          441.19720458984375,
-          454.2002258300781,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          450.69720458984375,
-          269.4000549316406,
-          461.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          460.19720458984375,
-          256.2000427246094,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          262.800048828125,
-          460.19720458984375,
-          282.6000671386719,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          460.19720458984375,
-          328.80010986328125,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          469.69720458984375,
-          223.20001220703125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          229.80001831054688,
-          469.69720458984375,
-          262.800048828125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          269.4000549316406,
-          469.69720458984375,
-          342.0001220703125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          348.6001281738281,
-          469.69720458984375,
-          421.2001953125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          479.19720458984375,
-          276.00006103515625,
-          490.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          488.69720458984375,
-          229.80001831054688,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          236.4000244140625,
-          488.69720458984375,
-          282.6000671386719,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          488.69720458984375,
-          348.6001281738281,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          355.20013427734375,
-          488.69720458984375,
-          375.0001525878906,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          502.800048828125,
-          376.19757080078125,
-          548.9999389648438,
-          387.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          555.5999145507812,
-          376.19757080078125,
-          575.3998413085938,
-          387.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          489.60003662109375,
-          385.04156494140625,
-          548.9999389648438,
-          396.04156494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          555.5999145507812,
-          385.04156494140625,
-          575.3998413085938,
-          396.04156494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 11,
-        "page": 0,
-        "rect": [
-          20.0,
-          712.1975708007812,
-          46.400001525878906,
-          723.1975708007812
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 11,
-        "page": 0,
-        "rect": [
-          20.0,
-          721.0415649414062,
-          99.19998931884766,
-          732.0415649414062
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          145.0,
-          732.1972045898438,
-          191.20004272460938,
-          743.1972045898438
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          197.800048828125,
-          732.1972045898438,
-          270.4001159667969,
-          743.1972045898438
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      }
-    ],
-    "baseline_ref_marks": [
-      {
-        "id": 1,
-        "page": 0,
-        "rect": [
           30.023998260498047,
           70.42929077148438,
           47.937599182128906,
           81.67684173583984
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2624,7 +498,7 @@
           119.64959716796875,
           81.67684173583984
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2636,7 +510,7 @@
           149.5295867919922,
           81.67684173583984
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2648,7 +522,7 @@
           209.28958129882812,
           81.67684173583984
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2660,7 +534,7 @@
           71.84159851074219,
           92.33284759521484
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2672,7 +546,7 @@
           125.62559509277344,
           92.33284759521484
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2684,7 +558,7 @@
           197.33758544921875,
           92.33284759521484
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2696,7 +570,7 @@
           47.937599182128906,
           102.9887924194336
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2708,7 +582,7 @@
           83.79359436035156,
           102.9887924194336
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2720,7 +594,7 @@
           119.64959716796875,
           102.9887924194336
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2732,7 +606,7 @@
           143.5535888671875,
           102.9887924194336
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2744,7 +618,7 @@
           179.4095916748047,
           102.9887924194336
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2756,7 +630,7 @@
           53.91360092163086,
           113.6447982788086
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2768,7 +642,7 @@
           119.64959716796875,
           113.6447982788086
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2780,7 +654,7 @@
           149.5295867919922,
           113.6447982788086
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
@@ -2792,11 +666,976 @@
           203.31358337402344,
           113.6447982788086
         ],
-        "side": "ref",
+        "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
+        "id": 1,
+        "page": 0,
+        "rect": [
+          216.86398315429688,
+          486.3732604980469,
+          240.7535858154297,
+          497.6208190917969
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          246.74398803710938,
+          486.3732604980469,
+          294.53759765625,
+          497.6208190917969
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          87.99728393554688,
+          239.88958740234375,
+          99.24483489990234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          245.87998962402344,
+          87.99728393554688,
+          269.76959228515625,
+          99.24483489990234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          275.7599792480469,
+          87.99728393554688,
+          305.6256103515625,
+          99.24483489990234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          311.6159973144531,
+          87.99728393554688,
+          341.4815979003906,
+          99.24483489990234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          98.65328979492188,
+          239.88958740234375,
+          109.90084075927734
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          245.87998962402344,
+          98.65328979492188,
+          263.7936096191406,
+          109.90084075927734
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          269.78399658203125,
+          98.65328979492188,
+          275.74560546875,
+          109.90084075927734
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          281.7359924316406,
+          98.65328979492188,
+          335.5055847167969,
+          109.90084075927734
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          341.4959716796875,
+          98.65328979492188,
+          377.33758544921875,
+          109.90084075927734
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          109.30929565429688,
+          227.93759155273438,
+          120.55684661865234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          233.92799377441406,
+          109.30929565429688,
+          245.86558532714844,
+          120.55684661865234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          251.85598754882812,
+          109.30929565429688,
+          257.8175964355469,
+          120.55684661865234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 1,
+        "rect": [
+          263.8079833984375,
+          109.30929565429688,
+          389.2895812988281,
+          120.55684661865234
+        ],
+        "side": "exam",
+        "kind": "Perubahan"
+      }
+    ],
+    "ref_match_marks": [
+      {
+        "field": "Booking Number",
+        "page": 0,
+        "rect": [
+          110.63865661621094,
+          58.57046890258789,
+          168.37596130371094,
+          70.08773040771484
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          356.7569274902344,
+          122.12272644042969,
+          408.5690002441406,
+          132.62808227539062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          410.66143798828125,
+          122.12272644042969,
+          465.15142822265625,
+          132.62808227539062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          135.2888946533203,
+          368.10321044921875,
+          144.10523986816406
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          370.3468322753906,
+          135.2888946533203,
+          411.6398620605469,
+          144.10523986816406
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          413.71759033203125,
+          135.2888946533203,
+          452.3246765136719,
+          144.10523986816406
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          454.56036376953125,
+          135.2888946533203,
+          494.03656005859375,
+          144.10523986816406
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          496.1932678222656,
+          135.2888946533203,
+          524.4513549804688,
+          144.10523986816406
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          146.08961486816406,
+          392.0480651855469,
+          154.9059600830078
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          394.2047424316406,
+          146.08961486816406,
+          420.29046630859375,
+          154.9059600830078
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          157.7312469482422,
+          370.7655029296875,
+          166.54759216308594
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          373.11181640625,
+          157.7312469482422,
+          421.90191650390625,
+          166.54759216308594
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          168.52810668945312,
+          515.0659790039062,
+          177.34445190429688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          190.36871337890625,
+          372.9222106933594,
+          199.18505859375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          375.0078125,
+          190.36871337890625,
+          393.0671081542969,
+          199.18505859375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          395.31072998046875,
+          190.36871337890625,
+          435.6952819824219,
+          199.18505859375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          437.7335510253906,
+          190.36871337890625,
+          453.9837951660156,
+          199.18505859375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          456.1404724121094,
+          190.36871337890625,
+          473.81268310546875,
+          199.18505859375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          201.28900146484375,
+          374.5101013183594,
+          210.1053466796875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          376.8247985839844,
+          201.28900146484375,
+          440.4353942871094,
+          210.1053466796875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          442.7106018066406,
+          201.28900146484375,
+          481.31768798828125,
+          210.1053466796875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          212.32888793945312,
+          413.2198791503906,
+          221.14523315429688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          415.2976379394531,
+          212.32888793945312,
+          443.5557861328125,
+          221.14523315429688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          445.71246337890625,
+          212.32888793945312,
+          481.00140380859375,
+          221.14523315429688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          483.0791320800781,
+          212.32888793945312,
+          509.2437438964844,
+          221.14523315429688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          223.12960815429688,
+          387.6950988769531,
+          231.94595336914062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          389.78070068359375,
+          223.12960815429688,
+          440.63262939453125,
+          231.94595336914062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          234.1694793701172,
+          526.3157348632812,
+          242.98582458496094
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          244.97019958496094,
+          379.9610595703125,
+          253.7865447998047
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          382.11773681640625,
+          244.97019958496094,
+          396.62994384765625,
+          253.7865447998047
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          398.8656311035156,
+          244.97019958496094,
+          430.3628234863281,
+          253.7865447998047
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          432.4405517578125,
+          244.97019958496094,
+          446.5577697753906,
+          253.7865447998047
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 0,
+        "rect": [
+          448.7144775390625,
+          244.97019958496094,
+          479.2557678222656,
+          253.7865447998047
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Vessel / Voyage",
+        "page": 0,
+        "rect": [
+          356.7588806152344,
+          302.4503173828125,
+          391.1394958496094,
+          311.26666259765625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Vessel / Voyage",
+        "page": 0,
+        "rect": [
+          393.01971435546875,
+          302.4503173828125,
+          422.58135986328125,
+          311.26666259765625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Vessel / Voyage",
+        "page": 0,
+        "rect": [
+          424.6985778808594,
+          302.4503173828125,
+          443.437255859375,
+          311.26666259765625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Loading",
+        "page": 0,
+        "rect": [
+          110.64166259765625,
+          301.6837463378906,
+          152.034423828125,
+          311.2935485839844
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Loading",
+        "page": 0,
+        "rect": [
+          154.5574493408203,
+          301.6837463378906,
+          202.31370544433594,
+          311.2935485839844
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Discharge",
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          325.9683837890625,
+          141.02908325195312,
+          334.78472900390625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Discharge",
+        "page": 0,
+        "rect": [
+          143.18576049804688,
+          325.9683837890625,
+          169.2714080810547,
+          334.78472900390625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Container & Seal",
+        "page": 1,
+        "rect": [
+          466.31982421875,
+          144.21725463867188,
+          526.0407104492188,
+          153.21466064453125
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Container & Seal",
+        "page": 1,
+        "rect": [
+          466.31982421875,
+          157.17727661132812,
+          513.4940185546875,
+          166.1746826171875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Quantity",
+        "page": 0,
+        "rect": [
+          221.63919067382812,
+          453.8415222167969,
+          243.30438232421875,
+          463.4513244628906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Quantity",
+        "page": 0,
+        "rect": [
+          245.83599853515625,
+          453.8415222167969,
+          277.6620788574219,
+          463.4513244628906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          221.63919067382812,
+          453.8415222167969,
+          243.30438232421875,
+          463.4513244628906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          245.83599853515625,
+          453.8415222167969,
+          277.6620788574219,
+          463.4513244628906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          221.63919067382812,
+          465.3620300292969,
+          243.30438232421875,
+          474.9718322753906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          245.83599853515625,
+          465.3620300292969,
+          251.0886688232422,
+          474.9718322753906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          253.58587646484375,
+          465.3620300292969,
+          288.1415710449219,
+          474.9718322753906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          290.6128845214844,
+          465.3620300292969,
+          302.75433349609375,
+          474.9718322753906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          183.47860717773438,
+          476.8825378417969,
+          247.07899475097656,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          249.43841552734375,
+          476.8825378417969,
+          280.4549865722656,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          282.8488464355469,
+          476.8825378417969,
+          302.9382019042969,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          305.6678466796875,
+          476.8825378417969,
+          336.81365966796875,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          339.2506103515625,
+          476.8825378417969,
+          364.5323181152344,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          366.97784423828125,
+          476.8825378417969,
+          375.60601806640625,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          378.0859680175781,
+          476.8825378417969,
+          426.32452392578125,
+          486.4923400878906
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          233.99639892578125,
+          488.4029846191406,
+          269.6974182128906,
+          498.0127868652344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          272.1429443359375,
+          488.4029846191406,
+          287.61676025390625,
+          498.0127868652344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          290.1397705078125,
+          488.4029846191406,
+          322.5341796875,
+          498.0127868652344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          217.80043029785156,
+          499.9234924316406,
+          229.7351837158203,
+          509.5332946777344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Cargo Description",
+        "page": 0,
+        "rect": [
+          232.18072509765625,
+          499.9234924316406,
+          257.2901916503906,
+          509.5332946777344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Gross Weight",
+        "page": 0,
+        "rect": [
+          148.67674255371094,
+          528.776123046875,
+          205.6022186279297,
+          539.4625854492188
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Gross Weight",
+        "page": 0,
+        "rect": [
+          261.4773864746094,
+          529.8021240234375,
+          276.4604797363281,
+          539.4119262695312
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Gross Measurement",
+        "page": 0,
+        "rect": [
+          157.19981384277344,
+          545.3388671875,
+          196.9438018798828,
+          556.0253295898438
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Gross Measurement",
+        "page": 0,
+        "rect": [
+          261.4773864746094,
+          546.3629150390625,
+          273.3260498046875,
+          555.9727172851562
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Invoice Number",
+        "page": 1,
+        "rect": [
+          466.31982421875,
+          118.4172592163086,
+          499.57403564453125,
+          127.41468048095703
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "HS Code",
+        "page": 0,
+        "rect": [
+          265.1606140136719,
+          499.9234924316406,
+          313.778076171875,
+          509.5332946777344
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          148.67674255371094,
+          511.6199035644531,
+          205.6022186279297,
+          522.306396484375
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          261.4773864746094,
+          512.6422729492188,
+          276.4604797363281,
+          522.2520751953125
+        ],
+        "kind": "Sama"
+      }
+    ],
+    "exam_match_marks": [
+      {
+        "field": "Booking Number",
+        "page": 0,
+        "rect": [
+          341.927978515625,
+          67.33328247070312,
+          413.6255798339844,
+          78.5808334350586
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -2804,11 +1643,10 @@
           95.74559783935547,
           151.44485473632812
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           101.73599243164062,
@@ -2816,11 +1654,10 @@
           167.45758056640625,
           151.44485473632812
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -2828,11 +1665,10 @@
           47.937599182128906,
           162.10079956054688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           53.92799758911133,
@@ -2840,11 +1676,10 @@
           101.72159576416016,
           162.10079956054688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           107.71199798583984,
@@ -2852,11 +1687,10 @@
           155.50558471679688,
           162.10079956054688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           161.49598693847656,
@@ -2864,11 +1698,10 @@
           209.28958129882812,
           162.10079956054688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -2876,35 +1709,76 @@
           59.88959884643555,
           172.75680541992188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
+        "field": "Consignee",
         "page": 0,
         "rect": [
-          65.87999725341797,
-          161.50924682617188,
+          30.023998260498047,
+          172.16525268554688,
+          83.79359436035156,
+          183.41281127929688
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 0,
+        "rect": [
+          89.78399658203125,
+          172.16525268554688,
           119.64959716796875,
-          172.75680541992188
+          183.41281127929688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 2,
-        "page": 0,
+        "field": "Consignee",
+        "page": 1,
         "rect": [
-          125.6399917602539,
-          161.50924682617188,
-          155.50558471679688,
-          172.75680541992188
+          210.02398681640625,
+          141.27725219726562,
+          233.91358947753906,
+          152.52481079101562
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Consignee",
+        "page": 1,
+        "rect": [
+          239.90399169921875,
+          141.27725219726562,
+          311.6015930175781,
+          152.52481079101562
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          151.93325805664062,
+          395.2655944824219,
+          163.18081665039062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Consignee",
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          162.58926391601562,
+          263.7936096191406,
+          173.83682250976562
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -2912,11 +1786,10 @@
           47.937599182128906,
           218.69284057617188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           53.92799758911133,
@@ -2924,11 +1797,10 @@
           77.81759643554688,
           218.69284057617188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           83.80799865722656,
@@ -2936,11 +1808,10 @@
           131.60159301757812,
           218.69284057617188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           137.5919952392578,
@@ -2948,11 +1819,10 @@
           161.48158264160156,
           218.69284057617188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           167.4720001220703,
@@ -2960,11 +1830,10 @@
           191.36158752441406,
           218.69284057617188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -2972,11 +1841,10 @@
           59.88959884643555,
           229.34884643554688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           65.87999725341797,
@@ -2984,11 +1852,10 @@
           149.5295867919922,
           229.34884643554688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           155.51998901367188,
@@ -2996,59 +1863,43 @@
           203.31358337402344,
           229.34884643554688
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           30.023998260498047,
           228.75729370117188,
-          101.72159576416016,
+          131.60159301757812,
           240.00485229492188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
-          107.71199798583984,
+          137.5919952392578,
           228.75729370117188,
-          137.5775909423828,
+          191.36158752441406,
           240.00485229492188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
-          143.5679931640625,
+          197.35198974609375,
           228.75729370117188,
-          197.33758544921875,
+          227.21759033203125,
           240.00485229492188
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          203.32798767089844,
-          228.75729370117188,
-          233.19358825683594,
-          240.00485229492188
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           30.023998260498047,
@@ -3056,11 +1907,10 @@
           71.84159851074219,
           250.66079711914062
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 3,
+        "field": "Notify Party",
         "page": 0,
         "rect": [
           77.83199310302734,
@@ -3068,11 +1918,87 @@
           155.50558471679688,
           250.66079711914062
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 4,
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          194.55728149414062,
+          395.2655944824219,
+          205.80484008789062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          205.21328735351562,
+          227.93759155273438,
+          216.46084594726562
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          210.02398681640625,
+          215.86929321289062,
+          239.88958740234375,
+          227.11685180664062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          251.85598754882812,
+          215.86929321289062,
+          269.76959228515625,
+          227.11685180664062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          275.7599792480469,
+          215.86929321289062,
+          317.5776062011719,
+          227.11685180664062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          323.5679931640625,
+          215.86929321289062,
+          341.4815979003906,
+          227.11685180664062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Notify Party",
+        "page": 1,
+        "rect": [
+          347.47198486328125,
+          215.86929321289062,
+          383.3135986328125,
+          227.11685180664062
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Vessel / Voyage",
         "page": 0,
         "rect": [
           29.95199966430664,
@@ -3080,11 +2006,10 @@
           55.022396087646484,
           304.20721435546875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 4,
+        "field": "Vessel / Voyage",
         "page": 0,
         "rect": [
           59.183998107910156,
@@ -3092,11 +2017,10 @@
           80.07839965820312,
           304.20721435546875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 5,
+        "field": "Vessel / Voyage",
         "page": 0,
         "rect": [
           84.23999786376953,
@@ -3104,11 +2028,32 @@
           100.9583969116211,
           304.20721435546875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 6,
+        "field": "Port of Loading",
+        "page": 0,
+        "rect": [
+          185.75999450683594,
+          298.8852844238281,
+          233.5535888671875,
+          310.1328430175781
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Loading",
+        "page": 0,
+        "rect": [
+          239.5439910888672,
+          298.8852844238281,
+          293.3135986328125,
+          310.1328430175781
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Port of Discharge",
         "page": 0,
         "rect": [
           29.807998657226562,
@@ -3116,11 +2061,10 @@
           65.64959716796875,
           333.24481201171875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 6,
+        "field": "Port of Discharge",
         "page": 0,
         "rect": [
           71.63999938964844,
@@ -3128,35 +2072,10 @@
           101.50559997558594,
           333.24481201171875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          185.75999450683594,
-          322.1280212402344,
-          218.1599884033203,
-          332.3160400390625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          223.55999755859375,
-          322.1280212402344,
-          250.5599822998047,
-          332.3160400390625
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
+        "field": "Container & Seal",
         "page": 0,
         "rect": [
           27.215999603271484,
@@ -3164,11 +2083,10 @@
           86.61599731445312,
           371.916015625
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 9,
+        "field": "Container & Seal",
         "page": 0,
         "rect": [
           119.80799865722656,
@@ -3176,11 +2094,10 @@
           125.20800018310547,
           372.3480224609375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 9,
+        "field": "Container & Seal",
         "page": 0,
         "rect": [
           127.58399200439453,
@@ -3188,47 +2105,32 @@
           176.18399047851562,
           371.916015625
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 9,
+        "field": "Quantity",
         "page": 0,
         "rect": [
-          27.215999603271484,
-          372.3840026855469,
-          86.61599731445312,
-          382.572021484375
+          177.19198608398438,
+          379.8132629394531,
+          201.0815887451172,
+          391.0608215332031
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 9,
+        "field": "Quantity",
         "page": 0,
         "rect": [
-          119.80799865722656,
-          372.8160095214844,
-          125.20800018310547,
-          383.0040283203125
+          165.239990234375,
+          390.4692687988281,
+          201.0815887451172,
+          401.7168273925781
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          127.58399200439453,
-          372.3840026855469,
-          176.18399047851562,
-          382.572021484375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
@@ -3236,401 +2138,836 @@
           246.72958374023438,
           401.7168273925781
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           252.71998596191406,
           390.4692687988281,
-          264.6575927734375,
-          401.7168273925781
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          401.125244140625,
-          246.72958374023438,
-          412.372802734375
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          252.71998596191406,
-          401.125244140625,
           288.56158447265625,
-          412.372802734375
+          401.7168273925781
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
-          411.78125,
+          401.125244140625,
           246.72958374023438,
-          423.02880859375
+          412.372802734375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           252.71998596191406,
-          411.78125,
+          401.125244140625,
           258.68157958984375,
-          423.02880859375
+          412.372802734375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           264.6719970703125,
-          411.78125,
+          401.125244140625,
           306.4895935058594,
-          423.02880859375
+          412.372802734375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           312.47998046875,
-          411.78125,
+          401.125244140625,
           324.4176025390625,
-          423.02880859375
+          412.372802734375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
-          422.437255859375,
+          411.78125,
           282.5856018066406,
-          433.684814453125
+          423.02880859375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           288.57598876953125,
-          422.437255859375,
+          411.78125,
           318.44158935546875,
-          433.684814453125
+          423.02880859375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           324.4319763183594,
-          422.437255859375,
+          411.78125,
           342.3455810546875,
-          433.684814453125
+          423.02880859375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           348.33599853515625,
-          422.437255859375,
+          411.78125,
           384.1775817871094,
-          433.684814453125
+          423.02880859375
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
-          433.09326171875,
+          422.437255859375,
           240.7535858154297,
-          444.3408203125
+          433.684814453125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           246.74398803710938,
-          433.09326171875,
+          422.437255859375,
           258.68157958984375,
-          444.3408203125
+          433.684814453125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           264.6719970703125,
-          433.09326171875,
+          422.437255859375,
           318.44158935546875,
-          444.3408203125
+          433.684814453125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
-          443.749267578125,
+          433.09326171875,
           258.68157958984375,
-          454.996826171875
+          444.3408203125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           264.6719970703125,
-          443.749267578125,
+          433.09326171875,
           282.5856018066406,
-          454.996826171875
+          444.3408203125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           288.57598876953125,
-          443.749267578125,
+          433.09326171875,
           324.4176025390625,
-          454.996826171875
+          444.3408203125
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           216.86398315429688,
-          454.4052429199219,
+          443.749267578125,
           228.8015899658203,
-          465.6528015136719
+          454.996826171875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
+        "field": "Cargo Description",
         "page": 0,
         "rect": [
           234.7919921875,
-          454.4052429199219,
+          443.749267578125,
           264.6575927734375,
-          465.6528015136719
+          454.996826171875
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          270.6479797363281,
-          454.4052429199219,
-          336.3695983886719,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          342.3599853515625,
-          454.4052429199219,
-          408.08160400390625,
-          465.6528015136719
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          216.86398315429688,
-          465.0612487792969,
-          234.777587890625,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          240.7679901123047,
-          465.0612487792969,
-          276.6095886230469,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          282.5999755859375,
-          465.0612487792969,
-          288.56158447265625,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          294.552001953125,
-          465.0612487792969,
-          354.297607421875,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          360.2879943847656,
-          465.0612487792969,
-          378.20159912109375,
-          476.3088073730469
-        ],
-        "side": "ref",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
+        "field": "Gross Weight",
         "page": 0,
         "rect": [
           451.8719787597656,
-          390.5026550292969,
+          379.8466491699219,
           509.7311706542969,
-          399.54962158203125
+          388.89361572265625
         ],
-        "side": "ref",
-        "kind": "Perubahan"
+        "kind": "Sama"
       },
       {
-        "id": 8,
+        "field": "Gross Measurement",
         "page": 0,
         "rect": [
-          532.1519775390625,
-          390.5026550292969,
+          536.9759521484375,
+          379.8466491699219,
           580.3632202148438,
-          399.54962158203125
+          388.89361572265625
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Invoice Number",
+        "page": 0,
+        "rect": [
+          216.86398315429688,
+          433.09326171875,
+          258.68157958984375,
+          444.3408203125
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Invoice Number",
+        "page": 0,
+        "rect": [
+          264.6719970703125,
+          433.09326171875,
+          282.5856018066406,
+          444.3408203125
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Invoice Number",
+        "page": 0,
+        "rect": [
+          288.57598876953125,
+          433.09326171875,
+          324.4176025390625,
+          444.3408203125
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "HS Code",
+        "page": 0,
+        "rect": [
+          216.86398315429688,
+          443.749267578125,
+          228.8015899658203,
+          454.996826171875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "HS Code",
+        "page": 0,
+        "rect": [
+          234.7919921875,
+          443.749267578125,
+          264.6575927734375,
+          454.996826171875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "HS Code",
+        "page": 0,
+        "rect": [
+          270.6479797363281,
+          443.749267578125,
+          336.3695983886719,
+          454.996826171875
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          216.86398315429688,
+          454.4052429199219,
+          234.777587890625,
+          465.6528015136719
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          240.7679901123047,
+          454.4052429199219,
+          276.6095886230469,
+          465.6528015136719
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          282.5999755859375,
+          454.4052429199219,
+          288.56158447265625,
+          465.6528015136719
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          294.552001953125,
+          454.4052429199219,
+          354.297607421875,
+          465.6528015136719
+        ],
+        "kind": "Sama"
+      },
+      {
+        "field": "Net Weight",
+        "page": 0,
+        "rect": [
+          360.2879943847656,
+          454.4052429199219,
+          378.20159912109375,
+          465.6528015136719
+        ],
+        "kind": "Sama"
+      }
+    ],
+    "matched_fields": [
+      "Booking Number",
+      "Cargo Description",
+      "Consignee",
+      "Container & Seal",
+      "Gross Measurement",
+      "Gross Weight",
+      "HS Code",
+      "Invoice Number",
+      "Net Weight",
+      "Notify Party",
+      "Port of Discharge",
+      "Port of Loading",
+      "Quantity",
+      "Vessel / Voyage"
+    ],
+    "verified_matches": [
+      {
+        "field": "Booking Number",
+        "reference_text": "JKTG86701300",
+        "examined_text": "JKTG86701300",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Consignee",
+        "reference_text": "BRIDGESTONE CORPORATION\n1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO\n104-8340, JAPAN\nTel: 042-342-4524\njrep_tire_import.tsg.bsj@bridgestone.com",
+        "examined_text": "BRIDGESTONE CORPORATION 1-1 KYOBASHI 3-CHOME, CHUO-KU, TOKYO 104-8340, JAPAN\nTEL: 042-342-4524\nJREP_TIRE_IMPORT.TSG.BSJ@BRIDGE\nSTONE.COM",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Notify Party",
+        "reference_text": "SBS TIRE FRONTIER CO., LTD.\n17-1, NISHI-SHINJUKU 8-CHOME,\nSHINJUKU-KU, TOKYO 160-6125, JAPAN\nTEL:+81 50-1732-5964/\nDL-BSB.IMPORT-TIRE@BRIDGESTONE.COM\nATTN. MR. SUZUKI/ MS. MIYAKE",
+        "examined_text": "SBS TIRE FRONTIER CO., LTD. 17-1, NISHI-SHINJUKU 8-CHOME, SHINJUKU-KU,TOKYO 160-6125, JAPAN TEL:+81 50-1732-5964/\nDL-BSB.IMPORT-TIRE@BRIDGESTONE.\nCOM\nATTN. MR. SUZUKI/ MS. MIYAKE",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Vessel / Voyage",
+        "reference_text": "NAGOYA TOWER 033N",
+        "examined_text": "NAGOYA TOWER 033N",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Port of Loading",
+        "reference_text": "JAKARTA, INDONESIA",
+        "examined_text": "JAKARTA, INDONESIA",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Port of Discharge",
+        "reference_text": "TOKYO, JAPAN",
+        "examined_text": "TOKYO, JAPAN",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Container & Seal",
+        "reference_text": "CAJU5672554 / ID54061AB",
+        "examined_text": "CAJU5672554 / ID54061AB",
+        "ref_page": 1,
+        "exam_page": 0
+      },
+      {
+        "field": "Quantity",
+        "reference_text": "1,210 PIECES",
+        "examined_text": "1210 PIECES",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Cargo Description",
+        "reference_text": "1,210 PIECES\n1,210 T (TYRES) OF\nBRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA\nINVOICE NO. 26YA1A\nHS CODE : 4011.80-010",
+        "examined_text": "1X40' HQ 1,210 PIECES 1,210 T (TYRES) OF BRIDGESTONE BRAND NEW TYRES, MADE IN INDONESIA INVOICE NO. 26YA1A HS CODE: 4011.80-010 NET WEIGHT : 17,388.650 KGS KAB. KARAWANG",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Gross Weight",
+        "reference_text": "17,388.650 Kgs",
+        "examined_text": "17388.650KGS",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Gross Measurement",
+        "reference_text": "65.6100 M3",
+        "examined_text": "65.610CBM",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Invoice Number",
+        "reference_text": "26YA1A",
+        "examined_text": "26YA1A",
+        "ref_page": 1,
+        "exam_page": 0
+      },
+      {
+        "field": "HS Code",
+        "reference_text": "4011.80-010",
+        "examined_text": "4011.80-010",
+        "ref_page": 0,
+        "exam_page": 0
+      },
+      {
+        "field": "Net Weight",
+        "reference_text": "17,388.650 Kgs",
+        "examined_text": "17,388.650 KGS",
+        "ref_page": 0,
+        "exam_page": 0
+      }
+    ],
+    "baseline_ref_marks": [
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          190.36871337890625,
+          123.0171890258789,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 11,
+        "id": 1,
         "page": 0,
         "rect": [
-          479.0159912109375,
-          67.33328247070312,
-          574.6176147460938,
-          78.5808334350586
+          125.17388153076172,
+          190.36871337890625,
+          183.12796020507812,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 12,
+        "id": 1,
         "page": 0,
         "rect": [
-          488.95196533203125,
-          652.6212768554688,
-          530.7695922851562,
-          663.8687744140625
+          185.13455200195312,
+          190.36871337890625,
+          203.27284240722656,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 12,
+        "id": 1,
         "page": 0,
         "rect": [
-          488.95196533203125,
-          673.789306640625,
-          500.88958740234375,
-          685.0368041992188
+          205.27944946289062,
+          190.36871337890625,
+          249.06100463867188,
+          199.18505859375
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 12,
+        "id": 1,
         "page": 0,
         "rect": [
-          506.8799743652344,
-          673.789306640625,
-          524.7935791015625,
-          685.0368041992188
+          110.63995361328125,
+          200.9697723388672,
+          152.84242248535156,
+          210.1829833984375
         ],
         "side": "ref",
         "kind": "Perubahan"
       },
       {
-        "id": 12,
+        "id": 1,
         "page": 0,
         "rect": [
-          530.7839965820312,
-          673.789306640625,
-          554.673583984375,
-          685.0368041992188
+          155.30258178710938,
+          200.9697723388672,
+          194.90457153320312,
+          210.1829833984375
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          197.32345581054688,
+          200.9697723388672,
+          253.18899536132812,
+          210.1829833984375
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          212.32888793945312,
+          121.12117767333984,
+          221.14523315429688
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          123.35687255859375,
+          212.32888793945312,
+          150.3431396484375,
+          221.14523315429688
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          152.42872619628906,
+          212.32888793945312,
+          180.12599182128906,
+          221.14523315429688
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          182.13258361816406,
+          212.32888793945312,
+          197.90087890625,
+          221.14523315429688
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          200.0655059814453,
+          212.32888793945312,
+          217.9747314453125,
+          221.14523315429688
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          223.24917602539062,
+          127.5991439819336,
+          232.06552124023438
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          129.75584411621094,
+          223.24917602539062,
+          180.84487915039062,
+          232.06552124023438
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          183.00157165527344,
+          223.24917602539062,
+          201.3057861328125,
+          232.06552124023438
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          203.54148864746094,
+          223.24917602539062,
+          240.17361450195312,
+          232.06552124023438
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          234.1694793701172,
+          128.46815490722656,
+          242.98582458496094
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          130.54583740234375,
+          234.1694793701172,
+          176.8158721923828,
+          242.98582458496094
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63995361328125,
+          244.65011596679688,
+          136.70278930664062,
+          253.8633270263672
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          138.95655822753906,
+          244.65011596679688,
+          162.45191955566406,
+          253.8633270263672
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          164.87904357910156,
+          244.65011596679688,
+          192.8654327392578,
+          253.8633270263672
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          195.25953674316406,
+          244.65011596679688,
+          218.42469787597656,
+          253.8633270263672
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63795471191406,
+          256.0096130371094,
+          138.73020935058594,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          140.73680114746094,
+          256.0096130371094,
+          154.85401916503906,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          156.9317169189453,
+          256.0096130371094,
+          159.12001037597656,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          161.2766876220703,
+          256.0096130371094,
+          195.586181640625,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          197.61647033691406,
+          256.0096130371094,
+          210.77781677246094,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          212.86341857910156,
+          256.0096130371094,
+          226.02476501464844,
+          264.8259582519531
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          110.63865661621094,
+          277.774658203125,
+          126.93274688720703,
+          288.31011962890625
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          129.61380004882812,
+          277.774658203125,
+          139.07305908203125,
+          288.31011962890625
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          141.69749450683594,
+          277.774658203125,
+          144.8411407470703,
+          288.31011962890625
+        ],
+        "side": "ref",
+        "kind": "Perubahan"
+      },
+      {
+        "id": 1,
+        "page": 0,
+        "rect": [
+          147.64495849609375,
+          277.774658203125,
+          246.07025146484375,
+          288.31011962890625
         ],
         "side": "ref",
         "kind": "Perubahan"
@@ -3641,10 +2978,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          73.19720458984375,
-          39.80000305175781,
-          84.19720458984375
+          30.023998260498047,
+          70.42929077148438,
+          47.937599182128906,
+          81.67684173583984
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3653,10 +2990,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          46.400001525878906,
-          73.19720458984375,
-          118.99998474121094,
-          84.19720458984375
+          53.92799758911133,
+          70.42929077148438,
+          119.64959716796875,
+          81.67684173583984
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3665,10 +3002,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.59998321533203,
-          73.19720458984375,
-          152.0,
-          84.19720458984375
+          125.6399917602539,
+          70.42929077148438,
+          149.5295867919922,
+          81.67684173583984
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3677,10 +3014,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          158.60000610351562,
-          73.19720458984375,
-          218.00006103515625,
-          84.19720458984375
+          155.51998901367188,
+          70.42929077148438,
+          209.28958129882812,
+          81.67684173583984
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3689,10 +3026,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          82.04119873046875,
-          66.19999694824219,
-          93.04119873046875
+          30.023998260498047,
+          81.08529663085938,
+          71.84159851074219,
+          92.33284759521484
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3701,10 +3038,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          72.79999542236328,
-          82.04119873046875,
-          125.59998321533203,
-          93.04119873046875
+          77.83199310302734,
+          81.08529663085938,
+          125.62559509277344,
+          92.33284759521484
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3713,10 +3050,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          132.19998168945312,
-          82.04119873046875,
-          204.800048828125,
-          93.04119873046875
+          131.61599731445312,
+          81.08529663085938,
+          197.33758544921875,
+          92.33284759521484
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3725,10 +3062,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          90.88519287109375,
-          39.80000305175781,
-          101.88519287109375
+          30.023998260498047,
+          91.74124145507812,
+          47.937599182128906,
+          102.9887924194336
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3737,10 +3074,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          46.400001525878906,
-          90.88519287109375,
-          79.39999389648438,
-          101.88519287109375
+          53.92799758911133,
+          91.74124145507812,
+          83.79359436035156,
+          102.9887924194336
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3749,10 +3086,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          85.99999237060547,
-          90.88519287109375,
-          118.99998474121094,
-          101.88519287109375
+          89.78399658203125,
+          91.74124145507812,
+          119.64959716796875,
+          102.9887924194336
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3761,10 +3098,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.59998321533203,
-          90.88519287109375,
-          145.39999389648438,
-          101.88519287109375
+          125.6399917602539,
+          91.74124145507812,
+          143.5535888671875,
+          102.9887924194336
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3773,10 +3110,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          152.0,
-          90.88519287109375,
-          185.00003051757812,
-          101.88519287109375
+          149.5439910888672,
+          91.74124145507812,
+          179.4095916748047,
+          102.9887924194336
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3785,10 +3122,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          99.72930908203125,
-          46.400001525878906,
-          110.72930908203125
+          30.023998260498047,
+          102.39724731445312,
+          53.91360092163086,
+          113.6447982788086
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3797,10 +3134,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          53.0,
-          99.72930908203125,
-          118.99998474121094,
-          110.72930908203125
+          59.90399932861328,
+          102.39724731445312,
+          119.64959716796875,
+          113.6447982788086
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3809,10 +3146,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          125.59998321533203,
-          99.72930908203125,
-          152.0,
-          110.72930908203125
+          125.6399917602539,
+          102.39724731445312,
+          149.5295867919922,
+          113.6447982788086
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3821,10 +3158,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          158.60000610351562,
-          99.72930908203125,
-          211.40005493164062,
-          110.72930908203125
+          155.51998901367188,
+          102.39724731445312,
+          203.31358337402344,
+          113.6447982788086
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3833,10 +3170,10 @@
         "id": 1,
         "page": 0,
         "rect": [
-          20.0,
-          108.57330322265625,
-          46.400001525878906,
-          119.57330322265625
+          216.86398315429688,
+          486.3732604980469,
+          240.7535858154297,
+          497.6208190917969
         ],
         "side": "exam",
         "kind": "Perubahan"
@@ -3845,1114 +3182,182 @@
         "id": 1,
         "page": 0,
         "rect": [
-          53.0,
-          108.57330322265625,
-          105.79998779296875,
-          119.57330322265625
+          246.74398803710938,
+          486.3732604980469,
+          294.53759765625,
+          497.6208190917969
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          112.39998626708984,
-          108.57330322265625,
-          118.99998474121094,
-          119.57330322265625
+          210.02398681640625,
+          87.99728393554688,
+          239.88958740234375,
+          99.24483489990234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          20.0,
-          117.41729736328125,
-          53.0,
-          128.41729736328125
+          245.87998962402344,
+          87.99728393554688,
+          269.76959228515625,
+          99.24483489990234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          59.599998474121094,
-          117.41729736328125,
-          79.39999389648438,
-          128.41729736328125
+          275.7599792480469,
+          87.99728393554688,
+          305.6256103515625,
+          99.24483489990234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          85.99999237060547,
-          117.41729736328125,
-          92.59999084472656,
-          128.41729736328125
+          311.6159973144531,
+          87.99728393554688,
+          341.4815979003906,
+          99.24483489990234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          99.19998931884766,
-          117.41729736328125,
-          158.60000610351562,
-          128.41729736328125
+          210.02398681640625,
+          98.65328979492188,
+          239.88958740234375,
+          109.90084075927734
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          165.20001220703125,
-          117.41729736328125,
-          185.00003051757812,
-          128.41729736328125
+          245.87998962402344,
+          98.65328979492188,
+          263.7936096191406,
+          109.90084075927734
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
         "id": 1,
-        "page": 0,
+        "page": 1,
         "rect": [
-          191.60003662109375,
-          117.41729736328125,
-          211.40005493164062,
-          128.41729736328125
+          269.78399658203125,
+          98.65328979492188,
+          275.74560546875,
+          109.90084075927734
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          20.0,
-          144.19732666015625,
-          92.59999084472656,
-          155.19732666015625
+          281.7359924316406,
+          98.65328979492188,
+          335.5055847167969,
+          109.90084075927734
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          99.19998931884766,
-          144.19732666015625,
-          171.80001831054688,
-          155.19732666015625
+          341.4959716796875,
+          98.65328979492188,
+          377.33758544921875,
+          109.90084075927734
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          20.0,
-          153.04132080078125,
-          39.80000305175781,
-          164.04132080078125
+          210.02398681640625,
+          109.30929565429688,
+          227.93759155273438,
+          120.55684661865234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          46.400001525878906,
-          153.04132080078125,
-          99.19998931884766,
-          164.04132080078125
+          233.92799377441406,
+          109.30929565429688,
+          245.86558532714844,
+          120.55684661865234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          105.79998779296875,
-          153.04132080078125,
-          158.60000610351562,
-          164.04132080078125
+          251.85598754882812,
+          109.30929565429688,
+          257.8175964355469,
+          120.55684661865234
         ],
         "side": "exam",
         "kind": "Perubahan"
       },
       {
-        "id": 2,
-        "page": 0,
+        "id": 1,
+        "page": 1,
         "rect": [
-          165.20001220703125,
-          153.04132080078125,
-          218.00006103515625,
-          164.04132080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          161.88531494140625,
-          53.0,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          59.599998474121094,
-          161.88531494140625,
-          118.99998474121094,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          161.88531494140625,
-          158.60000610351562,
-          172.88531494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          170.72943115234375,
-          46.400001525878906,
-          181.72943115234375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          53.0,
-          170.72943115234375,
-          132.19998168945312,
-          181.72943115234375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          179.57342529296875,
-          251.00009155273438,
-          190.57342529296875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 2,
-        "page": 0,
-        "rect": [
-          20.0,
-          188.41741943359375,
-          53.0,
-          199.41741943359375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          207.19744873046875,
-          92.59999084472656,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          207.19744873046875,
-          158.60000610351562,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          207.19744873046875,
-          191.60003662109375,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          198.20004272460938,
-          207.19744873046875,
-          224.60006713867188,
-          218.19744873046875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          216.04144287109375,
-          39.80000305175781,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          46.400001525878906,
-          216.04144287109375,
-          99.19998931884766,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          105.79998779296875,
-          216.04144287109375,
-          158.60000610351562,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          216.04144287109375,
-          218.00006103515625,
-          227.04144287109375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          224.88543701171875,
-          53.0,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          59.599998474121094,
-          224.88543701171875,
-          118.99998474121094,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          125.59998321533203,
-          224.88543701171875,
-          158.60000610351562,
-          235.88543701171875
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          233.72955322265625,
-          46.400001525878906,
-          244.72955322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          53.0,
-          233.72955322265625,
-          145.39999389648438,
-          244.72955322265625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          242.57354736328125,
-          53.0,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          66.19999694824219,
-          242.57354736328125,
-          85.99999237060547,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          92.59999084472656,
-          242.57354736328125,
-          145.39999389648438,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          152.0,
-          242.57354736328125,
-          171.80001831054688,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          178.4000244140625,
-          242.57354736328125,
-          204.800048828125,
-          253.57354736328125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 3,
-        "page": 0,
-        "rect": [
-          20.0,
-          251.41754150390625,
-          244.40008544921875,
-          262.41754150390625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          20.0,
-          312.19757080078125,
-          46.400001525878906,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 4,
-        "page": 0,
-        "rect": [
-          53.0,
-          312.19757080078125,
-          92.59999084472656,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 5,
-        "page": 0,
-        "rect": [
-          99.19998931884766,
-          312.19757080078125,
-          158.60000610351562,
-          323.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          20.0,
-          335.19757080078125,
-          66.19999694824219,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 6,
-        "page": 0,
-        "rect": [
-          72.79999542236328,
-          335.19757080078125,
-          105.79998779296875,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          187.0,
-          335.19757080078125,
-          233.20004272460938,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 7,
-        "page": 0,
-        "rect": [
-          239.800048828125,
-          335.19757080078125,
-          272.8000793457031,
-          346.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          20.0,
-          403.19720458984375,
-          198.20004272460938,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          152.0,
-          412.69720458984375,
-          158.60000610351562,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          165.20001220703125,
-          412.69720458984375,
-          171.80001831054688,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          178.4000244140625,
-          412.69720458984375,
-          198.20004272460938,
-          423.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          20.0,
-          422.19720458984375,
-          46.400001525878906,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 9,
-        "page": 0,
-        "rect": [
-          53.0,
-          422.19720458984375,
-          72.79999542236328,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          211.40005493164062,
-          403.19720458984375,
-          237.80007934570312,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          244.40008544921875,
-          403.19720458984375,
-          264.2001037597656,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          284.0001220703125,
-          403.19720458984375,
-          343.4001770019531,
-          414.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          422.19720458984375,
-          243.00003051757812,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          249.60003662109375,
-          422.19720458984375,
-          289.2000732421875,
-          433.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          431.69720458984375,
-          243.00003051757812,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          249.60003662109375,
-          431.69720458984375,
-          256.2000427246094,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          262.800048828125,
-          431.69720458984375,
-          309.0000915527344,
-          442.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          441.19720458984375,
-          282.6000671386719,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          441.19720458984375,
-          322.2001037597656,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          328.80010986328125,
-          441.19720458984375,
-          348.6001281738281,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          355.20013427734375,
-          441.19720458984375,
-          394.8001708984375,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          408.00018310546875,
-          441.19720458984375,
-          434.40020751953125,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          441.0002136230469,
-          441.19720458984375,
-          454.2002258300781,
-          452.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          450.69720458984375,
-          269.4000549316406,
-          461.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          460.19720458984375,
-          256.2000427246094,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          262.800048828125,
-          460.19720458984375,
-          282.6000671386719,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          460.19720458984375,
-          328.80010986328125,
-          471.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          469.69720458984375,
-          223.20001220703125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          229.80001831054688,
-          469.69720458984375,
-          262.800048828125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          269.4000549316406,
-          469.69720458984375,
-          342.0001220703125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          348.6001281738281,
-          469.69720458984375,
-          421.2001953125,
-          480.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          479.19720458984375,
-          276.00006103515625,
-          490.19720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          210.0,
-          488.69720458984375,
-          229.80001831054688,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          236.4000244140625,
-          488.69720458984375,
-          282.6000671386719,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          289.2000732421875,
-          488.69720458984375,
-          348.6001281738281,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 10,
-        "page": 0,
-        "rect": [
-          355.20013427734375,
-          488.69720458984375,
-          375.0001525878906,
-          499.69720458984375
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          502.800048828125,
-          376.19757080078125,
-          548.9999389648438,
-          387.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          555.5999145507812,
-          376.19757080078125,
-          575.3998413085938,
-          387.19757080078125
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          489.60003662109375,
-          385.04156494140625,
-          548.9999389648438,
-          396.04156494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 8,
-        "page": 0,
-        "rect": [
-          555.5999145507812,
-          385.04156494140625,
-          575.3998413085938,
-          396.04156494140625
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 11,
-        "page": 0,
-        "rect": [
-          20.0,
-          712.1975708007812,
-          46.400001525878906,
-          723.1975708007812
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 11,
-        "page": 0,
-        "rect": [
-          20.0,
-          721.0415649414062,
-          99.19998931884766,
-          732.0415649414062
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          145.0,
-          732.1972045898438,
-          191.20004272460938,
-          743.1972045898438
-        ],
-        "side": "exam",
-        "kind": "Perubahan"
-      },
-      {
-        "id": 12,
-        "page": 0,
-        "rect": [
-          197.800048828125,
-          732.1972045898438,
-          270.4001159667969,
-          743.1972045898438
+          263.8079833984375,
+          109.30929565429688,
+          389.2895812988281,
+          120.55684661865234
         ],
         "side": "exam",
         "kind": "Perubahan"
       }
     ],
     "ref_pages": {
-      "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 0,
-      "5": 0,
-      "6": 0,
-      "7": 0,
-      "9": 0,
-      "10": 0,
-      "8": 0,
-      "11": 0,
-      "12": 0
+      "1": 0
     },
     "exam_pages": {
-      "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 0,
-      "5": 0,
-      "6": 0,
-      "7": 0,
-      "9": 0,
-      "10": 0,
-      "8": 0,
-      "11": 0,
-      "12": 0
+      "1": 0
     },
     "baseline_ref_pages": {
-      "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 0,
-      "5": 0,
-      "6": 0,
-      "7": 0,
-      "9": 0,
-      "10": 0,
-      "8": 0,
-      "11": 0,
-      "12": 0
+      "1": 0
     },
     "baseline_exam_pages": {
-      "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 0,
-      "5": 0,
-      "6": 0,
-      "7": 0,
-      "9": 0,
-      "10": 0,
-      "8": 0,
-      "11": 0,
-      "12": 0
+      "1": 0
     },
     "reference": [],
     "examined": [],
@@ -4972,16 +3377,57 @@
   "viewer": {
     "ref_page": 0,
     "exam_page": 0,
-    "ref_zoom": 0.7171167510567423,
-    "exam_zoom": 0.7226890756302521
+    "ref_zoom": 0.6551098488238799,
+    "exam_zoom": 0.6532983985036833,
+    "show_matches": true
   },
   "audit": [
     {
-      "at": "2026-11-24T07:24:08.484916+00:00",
+      "at": "2026-11-25T02:03:28.499295+00:00",
       "action": "comparison_completed",
       "detail": {
-        "findings": 12,
-        "mode": "waybill_evergreen"
+        "findings": 1,
+        "mode": "waybill_one"
+      }
+    },
+    {
+      "at": "2026-11-25T02:03:32.333980+00:00",
+      "action": "matched_value_visibility",
+      "detail": {
+        "enabled": true,
+        "matched_fields": 14
+      }
+    },
+    {
+      "at": "2026-11-25T02:03:33.227573+00:00",
+      "action": "matched_value_visibility",
+      "detail": {
+        "enabled": false,
+        "matched_fields": 14
+      }
+    },
+    {
+      "at": "2026-11-25T02:03:33.893782+00:00",
+      "action": "matched_value_visibility",
+      "detail": {
+        "enabled": true,
+        "matched_fields": 14
+      }
+    },
+    {
+      "at": "2026-11-25T02:03:35.817738+00:00",
+      "action": "matched_value_visibility",
+      "detail": {
+        "enabled": false,
+        "matched_fields": 14
+      }
+    },
+    {
+      "at": "2026-11-25T02:03:36.555059+00:00",
+      "action": "matched_value_visibility",
+      "detail": {
+        "enabled": true,
+        "matched_fields": 14
       }
     }
   ]

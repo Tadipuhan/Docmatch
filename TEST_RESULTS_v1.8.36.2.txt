@@ -1,0 +1,14 @@
+DocMatch v1.8.36.2 — Regression summary
+
+163 tests passed
+59 tests skipped
+1 test failed (pre-existing in v1.8.36.1):
+  tests/test_meratus_reference_detection.py::test_letter_that_mentions_meratus_is_still_a_flexible_reference
+
+Feature-specific tests: 10 passed (tests/test_matched_value_switch_18362.py)
+PL+SI, cross-carrier, upload callback, and switch: 47+ checks passed before
+subsequent cargo-boundary/UI adjustments. Changes to the comparison engine
+preserve the legacy two-return-value API.
+
+GUI Windows / PyInstaller portable EXE: not tested on this Linux host.
+See README_v1.8.36.2.md and CHANGELOG_v1.8.36.2.md.

@@ -1,3 +1,25 @@
+> **Pembaruan v1.8.36.5:** Switch **Sama: ON** kini hanya memperlihatkan nilai cocok dan marker hijau bernomor; **Sama: OFF** hanya memperlihatkan nilai berbeda dan marker koreksi. Kedua mode berlaku untuk preview dua PDF, daftar Tahap 1/Tahap 2, dan PDF pemeriksaan beranotasi. Lihat [README_v1.8.36.5.md](README_v1.8.36.5.md).
+
+# DocMatch v1.8.36.3 — Switch Sama untuk Tahap 1 dan Tahap 2
+
+**Baru:** Switch **Sama: ON** menampilkan nilai yang cocok di daftar **Tahap 1 dan Tahap 2** sekaligus dengan stabilo hijau. **Sama: OFF** menampilkan daftar perbedaan serta anotasi koreksi seperti biasa. Data perbandingan dan Catatan Koreksi tidak diubah oleh switch. Lihat [Panduan v1.8.36.3](README_v1.8.36.3.md) dan [Changelog v1.8.36.3](CHANGELOG_v1.8.36.3.md).
+
+---
+
+# DocMatch v1.8.36.2 — Switch Stabilo Nilai Sama
+
+**Baru:** Switch **Sama: OFF/ON** pada Panel Pemeriksaan (Tab 2) menampilkan/menghilangkan stabilo **hijau untuk nilai yang cocok** pada kedua PDF. Temuan berbeda tetap memiliki penanda sebelumnya, tanpa perubahan Catatan Koreksi. Ekspor PDF **beranotasi** mengikuti pilihan switch. Lihat [Panduan v1.8.36.2](README_v1.8.36.2.md) dan [Changelog v1.8.36.2](CHANGELOG_v1.8.36.2.md).
+
+---
+
+# DocMatch v1.8.36.0 — SWB atau PL + SI sebagai Dokumen Rujukan
+
+**Fitur baru:** Klik *Pilih Dokumen Rujukan* pada Tab 1 untuk memilih **SWB** atau **Packing List (PL) + Shipping Instruction (SI)**. Pada opsi PL+SI, tersedia dua upload PDF terpisah. Pembacaan field, penanda, perbandingan, dan catatan memanfaatkan isi rujukan masing-masing.
+
+**Panduan fitur ini:** [README_v1.8.36.0.md](README_v1.8.36.0.md) · [Changelog](CHANGELOG_v1.8.36.0.md).
+
+---
+
 # DocMatch v1.8.35.9
 
 **Aplikasi Pembanding, Validasi, dan Koreksi Dokumen PDF — Offline**  
